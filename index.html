@@ -289,7 +289,7 @@
     if(n.includes(qn)) return 90;
     const isCho = /^[ㄱ-ㅎ]+$/.test(qn);
     if(isCho && cho(n).includes(qn)) return 80;
-    const other = norm([c.address,c.contact,c.dept,c.phone,c.parkingNote,c.parkingSpot,CATS[c.category]].join(" "));
+    const other = norm([c.address,c.contact,c.dept,c.phone,c.parkingNote,c.parkingSpot,c.myNote,CATS[c.category]].join(" "));
     if(other.includes(qn)) return 60;
     if(qn.length>=2 && !isCho && subseq(n, qn)) return 40;
     return 0;
@@ -378,8 +378,55 @@
     const saved = lsGet(LS, null);
     clients = saved || [];
     setSync("local");
-    if(saved === null) loadSamples(true);   // 처음 열 때 테스트용 샘플 자동 입력
     render(); renderCourse(); updateBadge();
+    syncShared(saved === null);
+  }
+
+  // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
+  const LSS = "clientParkApp.shared.v1";
+  const SHARED_FIELDS = ["name","address","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
+  async function syncShared(firstRun){
+    let data = null;
+    try{
+      const r = await fetch("clients.json?t="+Date.now(), {cache:"no-store"});
+      if(r.ok) data = await r.json();
+    }catch(e){ data = null; }
+    if(!data || !Array.isArray(data.clients)){
+      if(firstRun && !clients.length) loadSamples(true);   // 파일로 열었거나 오프라인일 때
+      return;
+    }
+    const ids = new Set();
+    let added = 0, changed = 0, removed = 0;
+    data.clients.forEach(sv=>{
+      if(!sv || !sv.id || !sv.name || !sv.address) return;
+      ids.add(sv.id);
+      const cur = clients.find(c=>c.id===sv.id);
+      if(!cur){
+        const n = {id:sv.id, shared:true, parking:"unk", building:"unk", enforce:[], parkingSpot:"", freeTime:""};
+        SHARED_FIELDS.forEach(k=>{ if(sv[k]!==undefined && sv[k]!==null) n[k]=sv[k]; });
+        n.updatedAt = nowStr(); clients.push(n); added++;
+      } else {
+        let diff = false;
+        cur.shared = true;
+        SHARED_FIELDS.forEach(k=>{
+          const v = sv[k]; if(v===undefined || v===null || v==="" || (Array.isArray(v)&&!v.length&&k!=="enforce")) return;
+          if(JSON.stringify(cur[k])!==JSON.stringify(v)){ cur[k]=v; diff=true; }
+        });
+        if(diff){ cur.updatedAt = nowStr(); changed++; }
+      }
+    });
+    // 회사 목록에서 빠진 공용 거래처는 폰에서도 정리 (직원이 직접 추가한 거래처는 그대로)
+    const before = clients.length;
+    clients = clients.filter(c=>!(c.shared && !ids.has(c.id)));
+    removed = before - clients.length;
+    if(removed){ course.stops = course.stops.filter(s=>clients.some(c=>c.id===s.id)); lsSet(LSC, course); }
+    lsSet(LS, clients);
+    sharedInfo = {updated:String(data.updated||""), count:ids.size, checkedAt:nowStr()+" "+hm()};
+    lsSet(LSS, sharedInfo);
+    render(); renderCourse(); updateBadge();
+    if(!firstRun && (added||changed||removed)) toast(`회사 목록 업데이트: 신규 ${added} · 변경 ${changed}${removed?" · 삭제 "+removed:""}`);
+    else if(firstRun && ids.size) toast(`회사 거래처 ${ids.size}곳을 불러왔어요`);
   }
 
   // ---------- 거래처 list ----------
@@ -432,7 +479,7 @@
     if(!rows.length){ $("#list").innerHTML='<div class="empty">조건에 맞는 거래처가 없어요.</div>'; return; }
     $("#list").innerHTML = rows.map(c=>{
       const pk = PARK[c.parking||"unk"];
-      const note = [c.parkingSpot?("추천: "+c.parkingSpot):"", c.parkingNote||""].filter(Boolean).join(" · ");
+      const note = [c.parkingSpot?("추천: "+c.parkingSpot):"", c.parkingNote||"", c.myNote?("📝 "+c.myNote):""].filter(Boolean).join(" · ");
       const ic = inCourse(c.id);
       return `<div class="card">
         <div class="card-h" data-open="${esc(c.id)}">
@@ -506,8 +553,11 @@
         <div class="tgl" id="tEnf">${ENF.map(e=>`<button data-e="${esc(e)}" class="${editing.enforce.includes(e)?"on":""}">${e==="단속카메라"?"📷 ":""}${esc(e)}</button>`).join("")}</div>
         <label class="f">추천 주차 장소</label>
         <input class="in" id="dSpot" placeholder="예) 건물 지하 B2 / 뒤편 ○○공영주차장" value="${esc(c.parkingSpot||"")}">
-        <label class="f">주차 메모</label>
+        <label class="f">주차 메모 (회사 공용)</label>
         <textarea class="in" id="dNote" placeholder="예) 오전 10~12시 만차, 정문 앞 카메라 있음, 뒷문 하역 가능">${esc(c.parkingNote||"")}</textarea>
+        <label class="f">📝 내 메모 (이 폰에만 저장 · 회사 업데이트로 안 지워짐)</label>
+        <textarea class="in" id="dMy" placeholder="예) 김원장님 오후엔 부재, 뒷문 벨 누르기">${esc(c.myNote||"")}</textarea>
+        ${c.shared?`<div class="upd">🏢 회사 공용 거래처 · 주소·연락처·주차 정보는 회사 업데이트 시 최신으로 바뀌어요</div>`:""}
         ${c.updatedAt?`<div class="upd">마지막 수정 ${esc(c.updatedAt)}</div>`:""}
       </div>
       <button class="btn p" id="dSave">저장</button>
@@ -521,6 +571,7 @@
     $("#dCourse").onclick = ()=>{ toggleCourse(c.id); detail(c.id); };
     $("#dSave").onclick = async ()=>{
       editing.parkingSpot=$("#dSpot").value.trim(); editing.parkingNote=$("#dNote").value.trim(); editing.freeTime=$("#dFree").value.trim();
+      editing.myNote=$("#dMy").value.trim();
       const xyRaw = $("#dXY").value.trim();
       if(xyRaw){ const g=parseCoord(xyRaw); if(!g){ toast("좌표 형식을 확인해 주세요 (예: 37.50, 127.03)"); return; } editing.lat=g.lat; editing.lng=g.lng; }
       else { editing.lat=""; editing.lng=""; }
@@ -627,6 +678,7 @@
     if((v=val("building"))!==null){ o.building = {"가능":"yes","불가":"no"}[v] || "unk"; }
     if((v=val("freeTime"))!==null) o.freeTime = v;
     if((v=val("parkingSpot"))!==null) o.parkingSpot = v;
+    if((v=val("myNote"))!==null) o.myNote = v;
     if((v=val("enforce"))!==null) o.enforce = v.split(/[,/·]/).map(x=>x.trim()).filter(Boolean);
     const g = parseCoord(o.lat, o.lng); o.lat = g ? g.lat : ""; o.lng = g ? g.lng : "";
     o.category = o.category ? guessCat(o.category, o.name) : guessCat(o.dept+" "+o.name);
@@ -652,7 +704,7 @@
       if(ex){
         n = Object.assign({}, ex, {name:o.name,address:o.address,phone:o.phone||ex.phone||"",contact:o.contact||ex.contact||"",dept:o.dept||ex.dept||"", category: imp.map.category>=0 ? o.category : (ex.category||o.category), lat: o.lat!==""?o.lat:(ex.lat||""), lng: o.lng!==""?o.lng:(ex.lng||"")});
         if(!ex.parkingNote && o.parkingNote) n.parkingNote = o.parkingNote;
-        ["parking","building","freeTime","parkingSpot","enforce"].forEach(k=>{ if(o[k]!==undefined && o[k]!=="" && !(Array.isArray(o[k])&&!o[k].length)) n[k]=o[k]; });
+        ["parking","building","freeTime","parkingSpot","enforce","myNote"].forEach(k=>{ if(o[k]!==undefined && o[k]!=="" && !(Array.isArray(o[k])&&!o[k].length)) n[k]=o[k]; });
         updated++;
       } else {
         n = Object.assign({id:uid(), parking:"unk", building:"unk", enforce:[], parkingSpot:"", freeTime:""}, o); added++;
@@ -671,17 +723,17 @@
   // ---------- 백업 / 샘플 / 메뉴 ----------
   const EXTRA = [
     {key:"parking", h:"주차난이도"}, {key:"building", h:"건물주차"}, {key:"freeTime", h:"무료시간"},
-    {key:"enforce", h:"단속주의"}, {key:"parkingSpot", h:"추천주차장소"}
+    {key:"enforce", h:"단속주의"}, {key:"parkingSpot", h:"추천주차장소"}, {key:"myNote", h:"내메모"}
   ];
   function exportXlsx(){
     if(typeof XLSX==="undefined"){ toast("엑셀 도구를 불러오지 못했어요 (인터넷 연결 확인)"); return; }
     if(!clients.length){ toast("내보낼 거래처가 없어요"); return; }
-    const rows = [["구분","거래처명","주소","연락처","담당자","진료과/품목","주차난이도","건물주차","무료시간","단속주의","추천주차장소","주차메모","위도","경도"]];
+    const rows = [["구분","거래처명","주소","연락처","담당자","진료과/품목","주차난이도","건물주차","무료시간","단속주의","추천주차장소","주차메모","위도","경도","내메모"]];
     clients.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko")).forEach(c=>{
       rows.push([CATS[catOf(c)], c.name, c.address, c.phone||"", c.contact||"", c.dept||"",
         PARK[c.parking||"unk"].short, {yes:"가능",no:"불가"}[c.building]||"모름", c.freeTime||"",
         (Array.isArray(c.enforce)?c.enforce:[]).join(", "), c.parkingSpot||"", c.parkingNote||"",
-        hasXY(c)?c.lat:"", hasXY(c)?c.lng:""]);
+        hasXY(c)?c.lat:"", hasXY(c)?c.lng:"", c.myNote||""]);
     });
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = [8,22,34,14,10,12,9,9,16,20,20,30,11,11].map(w=>({wch:w}));
@@ -726,13 +778,16 @@
   function menuSheet(){
     const nSample = clients.filter(c=>/^sample\d+$/.test(c.id)).length;
     openSheet(`<h2>메뉴</h2>
-      <p class="hint">이 버전은 데이터가 <b>이 휴대폰(브라우저)에만</b> 저장돼요. 다른 폰으로 옮기거나 팀원에게 줄 때는 엑셀로 내보낸 뒤, 그 폰에서 <b>엑셀 올리기</b>로 넣으면 주차 정보·좌표까지 그대로 들어가요.</p>
+      <p class="hint">회사 공용 거래처는 앱을 열 때마다 자동으로 최신으로 맞춰져요. 내가 폰에서 적은 <b>내 메모</b>와 <b>오늘 코스</b>는 이 폰에만 저장돼요.</p>
+      <div class="note" style="margin-top:4px">🏢 회사 공용 거래처 목록: ${sharedInfo.count?`<b>${sharedInfo.count}곳</b> (회사 업데이트 ${esc(sharedInfo.updated||"-")})<br>마지막 확인 ${esc(sharedInfo.checkedAt||"-")}`:"아직 불러오지 않았어요"}</div>
+      <button class="btn b" id="mSync">🔄 회사 목록 지금 확인</button>
       <button class="btn p" id="mExp">⬇️ 엑셀로 내보내기 (백업)</button>
       <button class="btn g" id="mSample">🧪 샘플 거래처 12곳 넣기</button>
       ${nSample?`<button class="btn g" id="mDelSample">샘플 거래처 ${nSample}곳 지우기</button>`:""}
       <button class="btn d" id="mWipe">전체 데이터 지우기</button>
       <p class="hint" style="margin-top:14px">홈 화면에 추가하면 앱처럼 쓸 수 있어요: 사파리 공유 → '홈 화면에 추가' / 크롬 ⋮ → '홈 화면에 추가'.<br>브라우저의 '방문 기록·사이트 데이터 삭제'를 하면 저장된 거래처도 지워지니, 가끔 백업해 두세요.</p>`);
     $("#mExp").onclick = exportXlsx;
+    $("#mSync").onclick = async ()=>{ await syncShared(false); toast("회사 목록을 확인했어요"); menuSheet(); };
     $("#mSample").onclick = ()=>{ loadSamples(); closeSheet(); };
     const ds = $("#mDelSample"); if(ds) ds.onclick = ()=>{
       const ids = new Set(clients.filter(c=>/^sample\d+$/.test(c.id)).map(c=>c.id));
@@ -747,6 +802,7 @@
     };
   }
   $("#btnMenu").onclick = menuSheet;
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") syncShared(false); });
 
   // ---------- 코스 ----------
   function ensureToday(){ if(!course.date) course.date = today(); }

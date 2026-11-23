@@ -194,13 +194,14 @@
       </div>
     </header>
     <div class="c-head">
-      <div class="c-stat">
+      <div class="chips" id="courseWho" style="display:none;padding-top:0;margin-bottom:8px"></div>
+      <div class="c-stat" id="cStat">
         <div><b id="stLeft">0</b><span>남은 곳</span></div>
         <div><b id="stUrg">0</b><span>긴급</span></div>
         <div><b id="stDone">0</b><span>완료</span></div>
       </div>
       <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
-      <div class="c-tools">
+      <div class="c-tools" id="cTools">
         <button class="act primary" id="cAdd">＋ 거래처 추가</button>
         <button class="act" id="cSort">📍 지역순 정렬</button>
         <button class="act" id="cReset">↺ 새 코스</button>
@@ -1390,7 +1391,50 @@
         : `<button class="btn donego" data-done="${esc(s.id)}">✅ 완료 (마지막 거래처)</button>`) : ""}
     </div>`;
   }
+  let courseWho = "me";   // "me" = 내 코스, 그 외 = 직원 이름 (배차 기준 코스 보기)
+  function staffCourse(name){
+    const its = (dispatch.date===today() ? dispatch.items : []).filter(x=>x.staff===name && cById(x.cid));
+    return its.slice().sort((a,b)=>roundOf(a).localeCompare(roundOf(b))).map(x=>({c:cById(x.cid), round:roundOf(x)}));
+  }
+  function renderCourseWho(){
+    const el = $("#courseWho");
+    const names = staffList.filter(n=>n!==settings.me);
+    if(!names.length){ el.style.display="none"; courseWho="me"; return; }
+    if(courseWho!=="me" && !names.includes(courseWho)) courseWho="me";
+    el.style.display="";
+    el.innerHTML = [["me", settings.me ? `🙋 내 코스 (${settings.me})` : "🙋 내 코스"]].concat(names.map(n=>[n, `👤 ${n} ${staffCourse(n).length}`]))
+      .map(([k,l])=>`<button class="chip ${courseWho===k?"on":""}" data-who="${esc(k)}">${esc(l)}</button>`).join("");
+  }
+  function renderStaffCourse(name){
+    const list = staffCourse(name);
+    $("#cStat").innerHTML = ROUNDS.map(([k,l])=>`<div><b>${list.filter(x=>x.round===k).length}</b><span>${l}</span></div>`).join("")+`<div><b>${list.length}</b><span>전체</span></div>`;
+    $("#cTools").style.display = "none";
+    $("#courseDate").textContent = today().slice(5).replace("-","/")+" · "+name;
+    if(!list.length){
+      $("#courseList").innerHTML = `<div class="empty">${esc(name)} 님에게 오늘 배차된 곳이 없어요.<br><span class="hint">배차 탭에서 배송지를 지정하면 여기에 보여요.</span></div>`;
+      return;
+    }
+    let lastR = "";
+    $("#courseList").innerHTML = `<div class="hint" style="padding:0 4px">배차표 기준 순서예요. 완료 여부는 각 직원 폰에만 기록돼요.</div>` + list.map(({c,round},i)=>{
+      const pk = PARK[c.parking||"unk"];
+      const head = round!==lastR ? `<div class="sub-t"><span class="tag cat">${round}차</span></div>` : ""; lastR = round;
+      return head+`<div class="card"><div class="stop"><div class="num">${i+1}</div>
+        <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer"><div class="name">${esc(c.name)}</div>
+          <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div></div>
+        <span class="badge b-${pk.cls}">주차 ${pk.short}</span></div>
+        ${tagsHtml(c)}
+        <div class="acts" style="grid-template-columns:1fr 1fr 1fr">
+          <a class="act primary" href="${esc(navHref(c))}"${navAttr}>🧭 길찾기</a>
+          <a class="act" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
+          ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
+        </div></div>`;
+    }).join("");
+  }
   function renderCourse(){
+    renderCourseWho();
+    if(courseWho!=="me"){ renderStaffCourse(courseWho); return; }
+    $("#cStat").innerHTML = `<div><b id="stLeft">0</b><span>남은 곳</span></div><div><b id="stUrg">0</b><span>긴급</span></div><div><b id="stDone">0</b><span>완료</span></div>`;
+    $("#cTools").style.display = "";
     const d = course.date ? course.date.slice(5).replace("-","/") : "";
     $("#courseDate").textContent = d ? d+" 코스" : "";
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
@@ -1457,9 +1501,10 @@
     $("#rNo").onclick = closeSheet;
   };
   $("#cAdd").onclick = pickSheet;
+  $("#courseWho").addEventListener("click", e=>{ const b=e.target.closest("[data-who]"); if(b){ courseWho=b.dataset.who; renderCourse(); window.scrollTo(0,0); } });
   $("#cRoute").onclick = routeSheet;
   function routeSheet(){
-    const pend = course.stops.filter(s=>!s.done).map(s=>cById(s.id)).filter(Boolean);
+    const pend = courseWho!=="me" ? staffCourse(courseWho).map(x=>x.c) : course.stops.filter(s=>!s.done).map(s=>cById(s.id)).filter(Boolean);
     if(!pend.length){ toast("코스에 남은 거래처가 없어요"); return; }
     const ok = pend.filter(hasXY), miss = pend.filter(c=>!hasXY(c));
     if(IS_PC){
@@ -1548,7 +1593,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.4";
+  const APP_VER = "2026-11-23.5";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

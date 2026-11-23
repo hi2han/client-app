@@ -174,7 +174,7 @@
       <div class="top">
         <h1>거래처</h1>
         <div style="display:flex;align-items:center;gap:10px">
-          <div class="sync"><span class="dot" id="syncDot"></span><span id="syncTxt">연결 중…</span></div>
+          <button class="sync" id="btnWho" style="border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--ink);font-weight:700"><span class="dot" id="syncDot" style="display:none"></span><span id="syncTxt">연결 중…</span></button>
           <button id="btnMenu" aria-label="메뉴" style="border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;cursor:pointer">⋯</button>
         </div>
       </div>
@@ -189,7 +189,7 @@
     </header>
     <div class="cpanel" id="cPanel">
       <div class="cp-head">
-        <div class="cp-title">🚚 내 오늘 코스<small id="courseDate"></small><small id="cpCount"></small></div>
+        <div class="cp-title">🚚 <span id="cpWho">내 </span>오늘 코스<small id="courseDate"></small><small id="cpCount"></small></div>
         <button class="cp-toggle" id="cpToggle">펼치기 ▼</button>
       </div>
       <div class="c-head" id="cpBody" style="display:none">
@@ -385,6 +385,18 @@
 
   // ---------- storage ----------
   const LS = "clientParkApp.v1", LSC = "clientParkApp.course.v1";
+  // 코스는 사람(내 이름)마다 따로 저장 → 이름을 바꾸면 그 사람 코스로 전환
+  const courseKey = () => LSC + (settings && settings.me ? "::"+settings.me : "");
+  function loadCourse(){
+    let c = lsGet(courseKey(), null);
+    if(!c && settings.me && !lsGet("clientParkApp.courseMigrated", false)){
+      const old = lsGet(LSC, null);
+      if(old && Array.isArray(old.stops) && old.stops.length){ c = old; }
+      lsSet("clientParkApp.courseMigrated", true);
+    }
+    if(!c || !Array.isArray(c.stops)) c = {date:today(), stops:[]};
+    return c;
+  }
   function lsGet(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
   function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 
@@ -502,12 +514,12 @@
     renderCourse(); if(view==="clients") render(); updateBadge();
     const ref = courseRef();
     saveCourseHistory();
-    if(!ref){ lsSet(LSC, course); return; }
+    if(!ref){ lsSet(courseKey(), course); return; }
     if(courseDirty) return; courseDirty = true;
     courseChain = courseChain.then(()=>new Promise(r=>setTimeout(r,250))).then(async ()=>{
       courseDirty = false;
       try{ await ref.set({date:course.date, stops:course.stops}); }
-      catch(e){ lsSet(LSC, course); toast("코스는 이 기기에만 저장돼요"); }
+      catch(e){ lsSet(courseKey(), course); toast("코스는 이 기기에만 저장돼요"); }
     });
   }
 
@@ -520,7 +532,8 @@
   function applyRole(){
     const admin = isAdmin();
     const t = $("#syncTxt"), d = $("#syncDot"); if(!t) return;
-    t.textContent = admin ? "관리자" : (settings.me ? settings.me : "직원");
+    t.textContent = (admin ? "🔐 " : "👤 ") + (settings.me || "이름 선택") + " ▾";
+    const ct = $("#cpWho"); if(ct) ct.textContent = settings.me ? settings.me+" " : "내 ";
     d.className = "dot " + (admin ? "on" : "local");
     $("#btnAdd").style.display = admin ? "" : "none";
     $("#btnUp").style.display = admin ? "" : "none";
@@ -528,7 +541,7 @@
 
   // 저장소: 지금은 이 기기(localStorage). 나중에 Firebase로 바꿀 때 saveClient / removeClient / saveCourse / init 만 교체하면 됨.
   function init(){
-    course = lsGet(LSC, {date:today(), stops:[]});
+    course = loadCourse();
     const saved = lsGet(LS, null);
     clients = saved || [];
     // 테스트용 샘플 거래처 정리 (id: sample01~ / 이름 "샘플)")
@@ -536,7 +549,7 @@
     if(clients.some(isSample)){
       const gone = new Set(clients.filter(isSample).map(c=>c.id));
       clients = clients.filter(c=>!gone.has(c.id)); lsSet(LS, clients);
-      course.stops = course.stops.filter(s=>!gone.has(s.id)); lsSet(LSC, course);
+      course.stops = course.stops.filter(s=>!gone.has(s.id)); lsSet(courseKey(), course);
     }
     setSync("local");
     render(); renderCourse(); updateBadge();
@@ -584,7 +597,7 @@
     const before = clients.length;
     clients = clients.filter(c=>!(c.shared && !ids.has(c.id)));
     removed = before - clients.length;
-    if(removed){ course.stops = course.stops.filter(s=>clients.some(c=>c.id===s.id)); lsSet(LSC, course); }
+    if(removed){ course.stops = course.stops.filter(s=>clients.some(c=>c.id===s.id)); lsSet(courseKey(), course); }
     lsSet(LS, clients);
     sharedInfo = {updated:String(data.updated||""), count:ids.size, checkedAt:nowStr()+" "+hm()};
     lsSet(LSS, sharedInfo);
@@ -693,6 +706,24 @@
           <div class="grid2" style="margin-top:8px">${IS_PC?"":`<a class="act primary" href="${esc(app)}">🧭 네이버 앱</a>`}<a class="act ${IS_PC?"primary":""}" href="${esc(N(q))}" target="_blank" rel="noopener">🌐 ${IS_PC?"네이버지도(웹)":"웹 지도"}</a></div></div>`; }).join("")}
       ${c.publicParkingNote?`<div class="hint" style="margin-top:6px">${esc(c.publicParkingNote)}</div>`:""}
     </div>`;
+  }
+  function switchPerson(name){
+    if((settings.me||"")===(name||"")){ closeSheet(); return; }
+    lsSet(courseKey(), course);              // 지금 사람 코스 저장
+    settings.me = name || ""; saveSettings();
+    course = loadCourse();                   // 바뀐 사람 코스 불러오기 (없으면 빈 코스)
+    pickSel.clear(); updateSelBar(); courseOpen = false;
+    fStaff = "all"; applyRole(); render(); renderCourse(); updateBadge();
+    closeSheet(); window.scrollTo({top:0});
+    toast(settings.me ? `${settings.me} 코스로 바꿨어요` : "이름 선택을 해제했어요");
+  }
+  function personSheet(){
+    const cnt = n => { const c = lsGet(LSC+"::"+n, null); return c && Array.isArray(c.stops) && c.date===today() ? c.stops.filter(x=>!x.done).length : 0; };
+    openSheet(`<h2>👤 누구 코스로 볼까요?</h2>
+      <p class="hint">이름을 고르면 그 사람의 오늘 코스로 바뀌어요. 코스는 사람마다 따로 저장돼요 (이 폰 기준).</p>
+      ${staffList.map(n=>`<button class="btn ${settings.me===n?"p":"g"}" data-person="${esc(n)}">${settings.me===n?"✓ ":""}${esc(n)}${cnt(n)?` · 오늘 남은 ${cnt(n)}곳`:""}</button>`).join("") || '<div class="empty" style="padding:16px">등록된 직원이 없어요.</div>'}
+      ${settings.me?`<button class="btn d" data-person="">이름 선택 해제</button>`:""}`);
+    $("#sheetBody").querySelectorAll("[data-person]").forEach(b=>b.onclick=()=>switchPerson(b.dataset.person));
   }
   const pickSel = new Set();
   function updateSelBar(){
@@ -1129,7 +1160,7 @@
       <button class="btn g" id="mAdmin">${admin?"🔐 관리자 설정 / 해제":"🔐 관리자 모드"}</button>
       ${nLocal?`<button class="btn d" id="mDelLocal">이 폰에만 있는 거래처 ${nLocal}곳 지우기</button>`:""}
       <p class="hint" style="margin-top:14px">홈 화면에 추가하면 앱처럼 쓸 수 있어요: 사파리 공유 → '홈 화면에 추가' / 크롬 ⋮ → '홈 화면에 추가'.</p>`);
-    $("#mMe").onchange = e=>{ settings.me = e.target.value; saveSettings(); fStaff = settings.me ? "me" : "all"; applyRole(); render(); toast(settings.me?`${settings.me} 님으로 설정했어요`:"이름 선택을 해제했어요"); };
+    $("#mMe").onchange = e=>switchPerson(e.target.value);
     $("#mMemo").onclick = memoSheet;
     const mh = $("#mHidden"); if(mh) mh.onclick = hiddenSheet;
     $("#mSync").onclick = async ()=>{ await syncShared(false); toast("회사 목록을 확인했어요"); menuSheet(); };
@@ -1504,16 +1535,17 @@
     fn(pending); course.stops = orderPending(pending).concat(done); saveCourse();
   }
   // 지난 코스 기록 (이 폰에 최근 30일)
-  const LSH = "clientParkApp.courseHistory.v1";
+  const LSH0 = "clientParkApp.courseHistory.v1";
+  const histKey = () => LSH0 + (settings.me ? "::"+settings.me : "");
   function saveCourseHistory(){
     if(!course.date || !course.stops.length) return;
-    const h = lsGet(LSH, {});
+    const h = lsGet(histKey(), {});
     h[course.date] = course.stops.map(st=>({id:st.id, round:sRound(st)}));
     Object.keys(h).sort().reverse().slice(30).forEach(k=>delete h[k]);
-    lsSet(LSH, h);
+    lsSet(histKey(), h);
   }
   function histSheet(){
-    const h = lsGet(LSH, {});
+    const h = lsGet(histKey(), {});
     const dates = Object.keys(h).filter(d=>d!==today() && Array.isArray(h[d]) && h[d].length).sort().reverse();
     const wd = d => DAYS[new Date(d+"T00:00:00").getDay()];
     openSheet(`<h2>📅 지난 코스 불러오기</h2>
@@ -1635,7 +1667,7 @@
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
     $("#stLeft").textContent = pending.length; $("#stUrg").textContent = pending.filter(s=>s.urgent).length; $("#stDone").textContent = done.length;
     if(!course.stops.length){
-      $("#courseList").innerHTML = `<div class="hint" style="padding:6px 2px 2px">아래 목록에서 거래처를 ☑ 체크하고 <b>1차 / 2차로 코스 추가</b>를 누르세요.${lsGet(LSH,null)?" 지난 코스는 펼치기 → 📅 지난 코스.":""}</div>`;
+      $("#courseList").innerHTML = `<div class="hint" style="padding:6px 2px 2px">아래 목록에서 거래처를 ☑ 체크하고 <b>1차 / 2차로 코스 추가</b>를 누르세요.${lsGet(histKey(),null)?" 지난 코스는 펼치기 → 📅 지난 코스.":""}</div>`;
       return;
     }
     const after = pending[1] ? cById(pending[1].id) : null;
@@ -1706,6 +1738,7 @@
     toast("1차·2차 안에서 가까운 순서로 정렬했어요 (맨 위 거래처 기준)");
   };
   $("#cHist").onclick = histSheet;
+  $("#btnWho").onclick = personSheet;
   $("#cpToggle").onclick = ()=>{ courseOpen = !courseOpen; renderCourse(); };
   $("#cReset").onclick = ()=>{
     openSheet(`<h2>새 코스로 시작할까요?</h2><p class="hint">지금 코스 목록(완료 기록 포함)이 비워져요. 거래처 정보는 그대로예요.</p>
@@ -1797,7 +1830,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.8";
+  const APP_VER = "2026-11-23.9";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

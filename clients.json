@@ -93,7 +93,7 @@
    "freeTime": "",
    "enforce": [],
    "parkingSpot": "건물 주차장",
-   "parkingNote": "주차공간 여유 · ⚠️ 수요일 오후 휴진",
+   "parkingNote": "주차공간 여유",
    "lat": 37.54816,
    "lng": 127.019618,
    "publicParking": [
@@ -108,7 +108,10 @@
      "note": "상시운영 · 5분당 200원"
     }
    ],
-   "publicParkingNote": ""
+   "publicParkingNote": "",
+   "closed": {
+    "3": "pm"
+   }
   },
   {
    "id": "h-seoul-oncare",

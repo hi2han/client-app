@@ -523,7 +523,7 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
@@ -554,7 +554,7 @@
       cur.shared = true;
       SHARED_FIELDS.forEach(k=>{
         let v = sv[k];
-        if(v===undefined || v===null) v = (k==="assignees"||k==="enforce"||k==="publicParking") ? [] : (k==="parking"||k==="building" ? "unk" : "");
+        if(v===undefined || v===null) v = (k==="assignees"||k==="enforce"||k==="publicParking") ? [] : (k==="closed" ? {} : (k==="parking"||k==="building" ? "unk" : ""));
         cur[k] = v;
       });
       if(before !== JSON.stringify(SHARED_FIELDS.map(k=>cur[k]))){ cur.updatedAt = nowStr(); if(!isNew) changed++; }
@@ -626,12 +626,33 @@
       .concat(keys.map(k=>`<button class="chip ${fArea===k?"on":""}" data-area="${esc(k)}">${esc(k)} ${areas[k]}</button>`)).join("") : "";
     $("#areaChips").style.display = keys.length>1 ? "" : "none";
   }
-  function tagsHtml(c){
+  function tagsHtml(c, round){
     const t = [];
+    const w = closedWarn(c, round);
+    if(w) t.push(`<span class="tag" style="background:var(--hard);color:#fff;font-weight:700">⛔ ${esc(w)}</span>`);
+    else if(closedText(c)) t.push(`<span class="tag" style="background:var(--unk-soft);color:var(--sub)">휴진 ${esc(closedText(c))}</span>`);
     if(c.building==="yes") t.push(`<span class="tag ok">🅿️ 건물주차${c.freeTime?" · "+esc(c.freeTime):""}</span>`);
     if(c.building==="no") t.push(`<span class="tag">건물주차 불가</span>`);
     (Array.isArray(c.enforce)?c.enforce:[]).forEach(e=>t.push(`<span class="tag">${e==="단속카메라"?"📷 ":""}${esc(e)}</span>`));
     return t.length ? `<div class="tags">${t.join("")}</div>` : "";
+  }
+  // ---------- 휴진 ----------
+  const DAYS = ["일","월","화","수","목","금","토"];
+  const PART = {all:"종일", am:"오전", pm:"오후"};
+  function closedMap(c){ return c && c.closed && typeof c.closed==="object" && !Array.isArray(c.closed) ? c.closed : {}; }
+  function closedText(c){
+    const m = closedMap(c);
+    return [1,2,3,4,5,6,0].filter(d=>m[d]).map(d=>`${DAYS[d]}${m[d]==="all"?"":" "+PART[m[d]]}`).join(", ");
+  }
+  // 오늘 + 배차(1차=오전, 2차=오후) 기준 휴진 경고 문구, 없으면 ""
+  function closedWarn(c, round){
+    const p = closedMap(c)[new Date().getDay()];
+    if(!p) return "";
+    if(p==="all") return "오늘 종일 휴진";
+    if(!round) return `오늘 ${PART[p]} 휴진`;
+    if(p==="am" && String(round)==="1") return "오늘 오전 휴진 (1차 배차)";
+    if(p==="pm" && String(round)==="2") return "오늘 오후 휴진 (2차 배차)";
+    return "";
   }
   function pubList(c){ return Array.isArray(c.publicParking) ? c.publicParking.filter(p=>p && p.name) : []; }
   function pubSummary(c){
@@ -712,6 +733,7 @@
     return `<div class="sec"><div class="sec-t">🅿️ 주차 정보</div>
       <div class="row"><span>주차 난이도</span><span><span class="badge b-${PARK[c.parking||"unk"].cls}">${PARK[c.parking||"unk"].short}</span></span></div>
       <div class="row"><span>건물 주차</span><span>${{yes:"가능",no:"불가"}[c.building]||"모름"}${c.freeTime?" · "+esc(c.freeTime):""}</span></div>
+      ${closedText(c)?`<div class="row"><span>휴진</span><span>⛔ ${esc(closedText(c))}</span></div>`:""}
       ${enf.length?`<div class="row"><span>주의</span><span>${enf.map(e=>`<span class="tag">${esc(e)}</span>`).join(" ")}</span></div>`:""}
       ${c.parkingSpot?`<div class="row"><span>추천 장소</span><span>${esc(c.parkingSpot)}</span></div>`:""}
       ${c.parkingNote?`<div class="note">${esc(c.parkingNote)}</div>`:""}
@@ -760,6 +782,10 @@
         <input class="in" id="dXY" inputmode="decimal" placeholder="위도, 경도  예) 37.5000, 127.0364" value="${hasXY(c)?esc(c.lat+", "+c.lng):""}">
         <div class="hint" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"⚠️ 좌표 없음 — 전체 경로 보내기에서 빠져요"}</div>
       </div>
+      <div class="sec"><div class="sec-t">⛔ 휴진 (누를 때마다: 없음 → 오후 → 오전 → 종일)</div>
+        <div class="tgl" id="tClosed">${[1,2,3,4,5,6,0].map(d=>{ const v=closedMap(editing)[d]; return `<button data-d="${d}" class="${v?"on":""}">${DAYS[d]}${v?" "+PART[v]:""}</button>`; }).join("")}</div>
+        <div class="hint" style="margin-top:6px">배차할 때 1차=오전, 2차=오후로 보고 휴진이면 경고해요.</div>
+      </div>
       <div class="sec"><div class="sec-t">구분</div>
         ${segHtml("sCat", [["hospital","병원"],["wholesale","도매상"],["etc","기타"]], editing.category, "c3")}
       </div>
@@ -789,6 +815,11 @@
     bindSeg("sPark", k=>editing.parking=k);
     bindSeg("sBld", k=>editing.building=k);
     bindToggles("tStaff", editing.assignees);
+    editing.closed = Object.assign({}, closedMap(c));
+    const tc = $("#tClosed"); if(tc) tc.onclick = e=>{ const b=e.target.closest("button"); if(!b) return; const d=b.dataset.d;
+      const next = {undefined:"pm", pm:"am", am:"all", all:undefined}[editing.closed[d]];
+      if(next) editing.closed[d]=next; else delete editing.closed[d];
+      b.textContent = DAYS[d]+(next?" "+PART[next]:""); b.classList.toggle("on", !!next); };
     $("#tEnf").onclick = e=>{ const b=e.target.closest("button"); if(!b) return; const v=b.dataset.e; const i=editing.enforce.indexOf(v); if(i>=0) editing.enforce.splice(i,1); else editing.enforce.push(v); b.classList.toggle("on",i<0); };
     $("#dCourse").onclick = ()=>{ toggleCourse(c.id); detail(c.id); };
     $("#dHide").onclick = ()=>{ toggleHide(c.id); closeSheet(); };
@@ -1183,7 +1214,7 @@
       <div id="mpList" style="margin-top:6px"></div>
       <div style="position:sticky;bottom:0;background:var(--card);padding:6px 0 0"><button class="btn p" id="mpAdd" disabled>추가</button></div>`);
     const row = (c, q, on) => `<label class="pick"><input type="checkbox" data-id="${esc(c.id)}" ${on?"checked":""}>
-      <div style="min-width:0"><div style="font-weight:700">${hl(c.name,q)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(area(c.address))}${(c.assignees||[]).length?" · 👤 "+esc(c.assignees.join(", ")):""}</div></div></label>`;
+      <div style="min-width:0"><div style="font-weight:700">${hl(c.name,q)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(area(c.address))}${(c.assignees||[]).length?" · 👤 "+esc(c.assignees.join(", ")):""}${closedWarn(c)?` · <b style="color:var(--hard)">⛔ ${esc(closedWarn(c))}</b>`:""}</div></div></label>`;
     const draw = ()=>{
       const q = $("#mpq").value, ex = exclude();
       const picked = sel.map(cById).filter(Boolean);
@@ -1218,23 +1249,40 @@
     if(!data){ try{ const r = await fetch(DP_PATH+"?t="+Date.now(), {cache:"no-store"}); if(r.ok) data = await r.json(); }catch(e){} }
     if(!data || !Array.isArray(data.items)) return;
     const changed = JSON.stringify(data) !== JSON.stringify(dispatch);
-    dispatch = {date:data.date||"", updated:data.updated||"", items:data.items.filter(x=>x && x.cid)};
+    dispatch = {date:data.date||"", updated:data.updated||"", items:data.items.filter(x=>x && x.cid), history:(data.history&&typeof data.history==="object")?data.history:{}};
     lsSet(LSD, dispatch);
     importMyDispatch(false);
     if(changed && view==="dispatch" && !dpDraft) renderDispatch();
   }
   // 오늘 배차표에서 내 몫을 오늘 코스에 넣기 (배차표가 새로 바뀌었을 때 1번)
+  // 오늘 배차표와 내 코스를 맞추기: 새로 배정된 곳은 넣고, 배차에서 빠진(다른 직원에게 넘어간) 곳은 뺌.
+  // 배차로 들어온 곳(fromDp)만 건드리고, 내가 직접 넣은 곳과 완료한 곳은 그대로 둠.
   function importMyDispatch(force){
     if(!settings.me || dispatch.date!==today()) return 0;
-    const key = dispatch.date+"|"+dispatch.updated;
+    const myList = dispatch.items.filter(x=>x.staff===settings.me).map(x=>x.cid+":"+roundOf(x)).join(",");
+    const key = dispatch.date+"|"+myList;      // 내 몫이 실제로 바뀌었을 때만 다시 맞춤
     if(!force && settings.dpImported===key) return 0;
-    const mine = dispatch.items.filter(x=>x.staff===settings.me && cById(x.cid)).sort((a,b)=>roundOf(a).localeCompare(roundOf(b))).map(x=>x.cid);
-    const fresh = mine.filter(id=>!course.stops.some(s=>s.id===id));
-    if(course.date!==today() && fresh.length){ course = {date:today(), stops:course.stops.filter(s=>!s.done)}; }
-    if(fresh.length) addStops(fresh);
+    if(course.date!==today()) course = {date:today(), stops:course.stops.filter(s=>!s.done && !s.fromDp)};
+    const mine = dispatch.items.filter(x=>x.staff===settings.me && cById(x.cid)).sort((a,b)=>roundOf(a).localeCompare(roundOf(b)));
+    const mineIds = new Set(mine.map(x=>x.cid));
+    const before = course.stops.length;
+    const gone = course.stops.filter(s=>s.fromDp && !s.done && !mineIds.has(s.id)).map(s=>s.id);
+    course.stops = course.stops.filter(s=>!(s.fromDp && !s.done && !mineIds.has(s.id)));
+    const fresh = mine.map(x=>x.cid).filter(id=>!course.stops.some(s=>s.id===id));
+    course.stops.forEach(s=>{ if(mineIds.has(s.id)) s.fromDp = true; });
+    if(fresh.length){
+      const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
+      fresh.forEach(id=>pending.push({id, urgent:false, done:false, fromDp:true}));
+      course.stops = pending.concat(done);
+    }
     settings.dpImported = key; saveSettings();
-    if(fresh.length) toast(`배차 ${fresh.length}곳이 오늘 코스에 들어왔어요`);
-    return fresh.length;
+    if(fresh.length || gone.length){
+      saveCourse();
+      const names = gone.map(id=>(cById(id)||{}).name).filter(Boolean);
+      toast(`배차 변경: ${fresh.length?"추가 "+fresh.length+"곳":""}${fresh.length&&gone.length?" · ":""}${gone.length?"빠짐 "+gone.length+"곳":""}`);
+      if(names.length) setTimeout(()=>toast("빠진 곳: "+names.join(", ")), 2100);
+    }
+    return fresh.length + gone.length;
   }
   function dpItems(){ return dpDraft ? dpDraft.items : (dispatch.date===today() ? dispatch.items : []); }
   function staffName(n){ return n || "미배정"; }
@@ -1245,12 +1293,14 @@
     $("#dpDate").textContent = today().slice(5).replace("-","/") + (editing?" · 편집 중":"");
     const counts = {}; items.forEach(x=>{ const k=roundOf(x)+"차 · "+staffName(x.staff); counts[k]=(counts[k]||0)+1; });
     const summary = Object.keys(counts).length ? Object.entries(counts).sort((a,b)=>a[0].localeCompare(b[0],"ko")).map(([k,v])=>`<span class="tag ${/미배정/.test(k)?"":"cat"}">${esc(k)} ${v}곳</span>`).join(" ") : "";
-    let head = `<div class="note" style="margin-top:4px">${items.length?`오늘 배송지 <b>${items.length}곳</b><div class="tags" style="margin-top:6px">${summary}</div>`:(isToday||editing?"오늘 배차가 비어 있어요.":"아직 오늘 배차표가 없어요.")}
+    const warnN = items.filter(x=>closedWarn(cById(x.cid), roundOf(x))).length;
+    let head = (warnN?`<div class="note" style="margin-top:4px;background:var(--hard-soft);color:var(--hard);font-weight:700">⛔ 휴진 시간에 배차된 곳이 ${warnN}곳 있어요 · 아래 빨간 표시 확인</div>`:"") + `<div class="note" style="margin-top:4px">${items.length?`오늘 배송지 <b>${items.length}곳</b><div class="tags" style="margin-top:6px">${summary}</div>`:(isToday||editing?"오늘 배차가 비어 있어요.":"아직 오늘 배차표가 없어요.")}
       ${!editing && dispatch.updated && isToday?`<div class="upd">배차 저장 ${esc(dispatch.updated)}</div>`:""}</div>`;
     if(admin && !editing){
       head += `<button class="btn p" id="dpEdit">✏️ 오늘 배차 ${items.length?"수정":"만들기"}</button>`;
     } else if(admin && editing){
-      head += `<div class="c-tools" style="grid-template-columns:1fr 1fr"><button class="act primary" id="dpAdd">＋ 배송지 추가</button><button class="act" id="dpAuto">👥 담당 직원대로 자동 배정</button></div>
+      head += `<div class="c-tools" style="grid-template-columns:1fr 1fr"><button class="act primary" id="dpAdd">＋ 배송지 추가</button><button class="act" id="dpLoad">📅 지난 배차 불러오기</button>
+          <button class="act" id="dpAuto">👥 담당 직원대로 자동 배정</button><button class="act" id="dpSort">📍 동선순 자동 정렬</button></div>
         <button class="btn p" id="dpSave">💾 배차 저장 (직원들에게 전송)</button>
         <button class="btn g" id="dpCancel">취소</button>`;
     } else if(!admin){
@@ -1272,6 +1322,7 @@
           const pk = PARK[c.parking||"unk"];
           return `<div class="card" style="${k===settings.me?"border-color:var(--brand)":""}"><div class="stop"><div class="num">${j+1}</div>
             <div class="stop-body"><div class="name">${esc(c.name)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(area(c.address))} · 주차 ${pk.short}</div>
+            ${closedWarn(c, roundOf(x))?`<div class="tags"><span class="tag" style="background:var(--hard);color:#fff;font-weight:700">⛔ ${esc(closedWarn(c, roundOf(x)))}</span></div>`:""}
             ${editing?`<div style="display:flex;gap:6px;margin-top:8px;align-items:center"><select class="in" style="padding:8px;width:76px;flex:none" data-dpround="${x.i}">${ropt(roundOf(x))}</select><select class="in" style="padding:8px" data-dpstaff="${x.i}">${opt(x.staff)}</select>
               <button class="act" style="flex:none;padding:8px 10px" data-dpup="${x.i}">▲</button><button class="act" style="flex:none;padding:8px 10px" data-dpdown="${x.i}">▼</button>
               <button class="act" style="flex:none;padding:8px 10px;color:var(--hard)" data-dprm="${x.i}">✕</button></div>`:""}
@@ -1280,13 +1331,20 @@
     if(b("dpEdit")) b("dpEdit").onclick = ()=>{ dpDraft = {date:today(), items: (isToday?dispatch.items:[]).map(x=>Object.assign({},x))}; renderDispatch(); };
     if(b("dpCancel")) b("dpCancel").onclick = ()=>{ dpDraft = null; renderDispatch(); };
     if(b("dpAdd")) b("dpAdd").onclick = dpPick;
+    if(b("dpLoad")) b("dpLoad").onclick = dpLoadSheet;
+    if(b("dpSort")) b("dpSort").onclick = ()=>{ dpDraft.items = sortByRoute(dpDraft.items); renderDispatch(); toast("1차·2차, 직원별로 가까운 순서로 정렬했어요"); };
     if(b("dpAuto")) b("dpAuto").onclick = ()=>{ let n=0; dpDraft.items.forEach(x=>{ if(!x.staff){ const c=cById(x.cid); const a=c&&Array.isArray(c.assignees)?c.assignees:[]; if(a.length){ x.staff=a[0]; n++; } } }); renderDispatch(); toast(n?`${n}곳을 담당 직원에게 배정했어요`:"배정할 미배정 거래처가 없어요"); };
     if(b("dpSave")) b("dpSave").onclick = async ()=>{
       const un = dpDraft.items.filter(x=>!x.staff).length;
       b("dpSave").disabled = true; b("dpSave").textContent = "저장 중…";
       try{
-        const saved = await publishFile(DP_PATH, d=>{ d.date = dpDraft.date; d.items = dpDraft.items.map(x=>({cid:x.cid, staff:x.staff||"", round:roundOf(x)})); }, `${dpDraft.date} 배차`, {date:"", items:[]});
-        dispatch = {date:saved.date, updated:saved.updated, items:saved.items}; lsSet(LSD, dispatch); dpDraft = null;
+        const saved = await publishFile(DP_PATH, d=>{
+          d.date = dpDraft.date; d.items = dpDraft.items.map(x=>({cid:x.cid, staff:x.staff||"", round:roundOf(x)}));
+          d.history = (d.history && typeof d.history==="object") ? d.history : {};
+          d.history[d.date] = d.items;
+          Object.keys(d.history).sort().reverse().slice(30).forEach(k=>delete d.history[k]);   // 최근 30일치만 보관
+        }, `${dpDraft.date} 배차`, {date:"", items:[]});
+        dispatch = {date:saved.date, updated:saved.updated, items:saved.items, history:saved.history||{}}; lsSet(LSD, dispatch); dpDraft = null;
         renderDispatch(); importMyDispatch(true);
         toast(un?`저장했어요 · 미배정 ${un}곳이 있어요`:"배차를 저장했어요 · 직원 앱에는 몇 분 뒤 반영돼요");
       }catch(e){ b("dpSave").disabled=false; b("dpSave").textContent="다시 저장"; }
@@ -1310,6 +1368,52 @@
     }
     renderDispatch();
   });
+  function dpLoadSheet(){
+    const h = Object.assign({}, dispatch.history||{});
+    if(dispatch.date && dispatch.date!==today() && dispatch.items.length && !h[dispatch.date]) h[dispatch.date] = dispatch.items;
+    const dates = Object.keys(h).filter(d=>d!==today() && Array.isArray(h[d]) && h[d].length).sort().reverse();
+    const wd = today => DAYS[new Date(today+"T00:00:00").getDay()];
+    const sameDay = d => wd(d)===wd(today());
+    openSheet(`<h2>📅 지난 배차 불러오기</h2>
+      <p class="hint">고른 날의 배송지·직원·1차/2차를 오늘 배차에 그대로 넣어요. 이미 있는 거래처는 건너뛰어요. 넣은 뒤 수정하고 저장하면 돼요.</p>
+      ${dates.length ? dates.map(d=>{ const its=h[d]; const by={}; its.forEach(x=>{ const k=staffName(x.staff); by[k]=(by[k]||0)+1; });
+        return `<div class="pick" style="cursor:default"><div style="flex:1;min-width:0"><b>${d.slice(5).replace("-","/")} (${wd(d)})</b>${sameDay(d)?' <span class="tag cat">같은 요일</span>':""}
+          <div class="meta">${its.length}곳 · ${Object.entries(by).map(([k,v])=>esc(k)+" "+v).join(", ")}</div></div>
+          <button class="act primary" style="flex:none;padding:8px 12px" data-load="${d}">불러오기</button></div>`; }).join("")
+        : `<div class="empty" style="padding:20px">저장된 지난 배차가 없어요.<br><span class="hint">오늘부터 배차를 저장하면 최근 30일치가 쌓여요.</span></div>`}
+      <button class="btn g" id="ldClose">닫기</button>`);
+    $("#ldClose").onclick = closeSheet;
+    $("#sheetBody").querySelectorAll("[data-load]").forEach(b=>b.onclick=()=>{
+      const its = h[b.dataset.load]; let n=0;
+      its.forEach(x=>{ if(cById(x.cid) && !dpDraft.items.some(y=>y.cid===x.cid)){ dpDraft.items.push({cid:x.cid, staff:x.staff||"", round:roundOf(x)}); n++; } });
+      closeSheet(); renderDispatch(); toast(n?`${n}곳을 불러왔어요 · 확인 후 저장하세요`:"새로 넣을 곳이 없어요");
+    });
+  }
+  // 1차/2차·직원별로 묶어서, 좌표 기준 가까운 곳부터 이어지게 정렬 (좌표 없으면 지역·주소순으로 뒤에)
+  function sortByRoute(items){
+    const dist = (a,b)=>{ const R=6371, toR=Math.PI/180; const dLat=(b.lat-a.lat)*toR, dLng=(b.lng-a.lng)*toR;
+      const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+    const groups = {}; const order = [];
+    items.forEach(x=>{ const k = roundOf(x)+"|"+(x.staff||""); if(!groups[k]){ groups[k]=[]; order.push(k);} groups[k].push(x); });
+    order.sort();
+    const out = [];
+    order.forEach(k=>{
+      const g = groups[k];
+      const withXY = g.filter(x=>hasXY(cById(x.cid))), noXY = g.filter(x=>!hasXY(cById(x.cid)));
+      const pt = x=>hasXY(cById(x.cid));
+      // 시작점: 현재 그룹의 첫 번째 거래처(관리자가 맨 위에 둔 곳)
+      const rest = withXY.slice(); const path = [];
+      if(rest.length){ path.push(rest.shift()); }
+      while(rest.length){
+        const last = pt(path[path.length-1]); let bi=0, bd=Infinity;
+        rest.forEach((x,i)=>{ const d=dist(last, pt(x)); if(d<bd){ bd=d; bi=i; } });
+        path.push(rest.splice(bi,1)[0]);
+      }
+      noXY.sort((a,b)=>{ const A=cById(a.cid)||{}, B=cById(b.cid)||{}; return area(A.address).localeCompare(area(B.address),"ko") || String(A.address).localeCompare(String(B.address),"ko"); });
+      out.push(...path, ...noXY);
+    });
+    return out;
+  }
   function dpPick(){
     let who = "", round = "1";
     multiPicker({
@@ -1371,7 +1475,7 @@
         </div>
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
       </div>
-      ${tagsHtml(c)}
+      ${tagsHtml(c, (()=>{ const d = dispatch.date===today() && dispatch.items.find(x=>x.cid===c.id && (!settings.me || x.staff===settings.me)); return d?roundOf(d):""; })())}
       ${info?`<div class="note">${esc(info)}</div>`:""}
       ${isNext?`<a class="btn p navgo" href="${esc(navHref(c))}"${navAttr}>${NAV_LABEL}</a>
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
@@ -1422,7 +1526,7 @@
         <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer"><div class="name">${esc(c.name)}</div>
           <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div></div>
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span></div>
-        ${tagsHtml(c)}
+        ${tagsHtml(c, round)}
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr">
           <a class="act primary" href="${esc(navHref(c))}"${navAttr}>🧭 길찾기</a>
           <a class="act" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
@@ -1593,7 +1697,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.5";
+  const APP_VER = "2026-11-23.6";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

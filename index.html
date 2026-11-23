@@ -222,6 +222,18 @@
   .sheet{border-radius:24px 24px 0 0}
   .in{border:0;background:var(--fill);border-radius:12px;padding:13px 14px}
   .fab .add{display:none}
+  .clist{background:var(--card);border-radius:20px;overflow:hidden}
+  .crow{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;border-bottom:1px solid var(--line)}
+  .crow:last-child{border-bottom:0}
+  .crow.picked{background:var(--brand-soft)}
+  .crow .pickbox{margin:0}
+  .cmain{flex:1;min-width:0;cursor:pointer}
+  .cname{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmeta{font-size:13px;color:var(--sub);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pk-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px;padding:0}
+  .pk-dot.b-easy{background:var(--easy)} .pk-dot.b-mid{background:var(--mid)} .pk-dot.b-hard{background:var(--hard)} .pk-dot.b-unk{background:#c4c9cf}
+  .cbtn{flex:none;width:44px;height:44px;border-radius:12px;background:var(--fill);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px}
+  .incourse{font-size:11.5px;padding:2px 7px;border-radius:6px;vertical-align:2px}
 </style>
 </head>
 <body>
@@ -853,30 +865,28 @@
       return;
     }
     if(!rows.length){ $("#list").innerHTML='<div class="empty">조건에 맞는 거래처가 없어요.</div>'; return; }
-    $("#list").innerHTML = rows.map(c=>{
+    $("#list").innerHTML = `<div class="clist">` + rows.map(c=>{
       const pk = PARK[c.parking||"unk"];
-      const note = [c.parkingSpot?("추천: "+c.parkingSpot):"", c.parkingNote||"", c.myNote?("📝 "+c.myNote):""].filter(Boolean).join(" · ");
-      const ic = inCourse(c.id);
       const cs = course.stops.find(st=>st.id===c.id && !st.done);
-      return `<div class="card ${pickSel.has(c.id)?"picked":""}">
-        <div class="card-h">
-          <input type="checkbox" class="pickbox" data-pick="${esc(c.id)}" ${pickSel.has(c.id)?"checked":""} aria-label="선택">
-          <div style="flex:1;min-width:0" data-open="${esc(c.id)}"><div class="name">${hl(c.name, query)} ${cs?`<span class="incourse">✓ 코스 ${sRound(cs)}차</span>`:""}</div>
-          <div class="meta"><span class="tag cat" style="padding:1px 6px">${CATS[catOf(c)]}</span> ${esc([c.dept,c.contact].filter(Boolean).join(" · "))}</div></div>
-          <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
+      const sel = pickSel.has(c.id);
+      const cl = closedText(c);
+      return `<div class="crow ${sel?"picked":""}">
+        <input type="checkbox" class="pickbox" data-pick="${esc(c.id)}" ${sel?"checked":""} aria-label="선택">
+        <div class="cmain" data-open="${esc(c.id)}">
+          <div class="cname">${hl(c.name, query)}${cs?` <span class="incourse">${sRound(cs)}차</span>`:""}</div>
+          <div class="cmeta"><span class="pk-dot b-${pk.cls}"></span>${esc(CATS[catOf(c)])} · ${esc(area(c.address)||"")} · 주차 ${pk.short}${cl?` · <span style="color:var(--hard)">휴진 ${esc(cl)}</span>`:""}</div>
         </div>
-        <div class="addr" data-open="${esc(c.id)}">${esc(c.address)}${c.addressDetail?` <span style="color:var(--sub)">${esc(c.addressDetail)}</span>`:""}</div>
-        ${tagsHtml(c)}
-        ${note?`<div class="note" data-open="${esc(c.id)}">${esc(note)}</div>`:""}
-        ${pubSummary(c)}
-        <div class="acts">
-          ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
-          <a class="act" href="${esc(IS_PC?W.pin(c):L.place(c))}" target="_blank" rel="noopener">📍 위치</a>
-          <a class="act primary" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
-          <button class="act ${ic?"in-course":""}" data-course="${esc(c.id)}">${ic?"코스 빼기":"＋ 코스"}</button>
-        </div>
+        ${c.phone?`<a class="cbtn" href="${esc(telHref(c.phone))}" aria-label="전화">📞</a>`:""}
+        <a class="cbtn" href="${esc(mapHref(c))}"${IS_PC?' target="_blank" rel="noopener"':""} aria-label="네이버 지도">📍</a>
       </div>`;
-    }).join("");
+    }).join("") + `</div>`;
+  }
+  // 네이버 지도에서 거래처 위치 바로 보기 (좌표 있으면 그 지점, 없으면 주소 검색)
+  function mapHref(c){
+    if(IS_PC) return W.pin(c);
+    const g = hasXY(c);
+    return g ? "nmap://place?lat="+g.lat+"&lng="+g.lng+"&name="+enc(shortName(c))+"&appname="+APPN
+             : "nmap://search?query="+enc(c.address)+"&appname="+APPN;
   }
 
   // ---------- sheet ----------
@@ -930,8 +940,8 @@
       ${pubSection(c)}
       <div class="sec"><div class="sec-t">네이버지도</div>
         <div class="grid2">
-          <a class="act primary" href="${esc(IS_PC?W.pin(c):L.place(c))}" target="_blank" rel="noopener">📍 위치·길찾기</a>
-          <a class="act" href="${esc(L.park(c))}" target="_blank" rel="noopener">주변 주차장 검색</a>
+          <a class="act primary" href="${esc(mapHref(c))}"${IS_PC?' target="_blank" rel="noopener"':""}>📍 네이버 지도에서 보기</a>
+          <a class="act" href="${esc(navHref(c))}"${navAttr}>🧭 길찾기</a>
         </div>
       </div>`;
     const myNote = `
@@ -1792,7 +1802,7 @@
         ${tagsHtml(c, round)}
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr">
           <a class="act primary" href="${esc(navHref(c))}"${navAttr}>🧭 길찾기</a>
-          <a class="act" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
+          <a class="act" href="${esc(mapHref(c))}"${IS_PC?' target="_blank" rel="noopener"':""}>📍 지도</a>
           ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
         </div></div>`;
     }).join("");
@@ -2003,7 +2013,7 @@
   $("#list").addEventListener("change", e=>{
     const cb = e.target.closest("[data-pick]"); if(!cb) return;
     cb.checked ? pickSel.add(cb.dataset.pick) : pickSel.delete(cb.dataset.pick);
-    cb.closest(".card").classList.toggle("picked", cb.checked); updateSelBar();
+    cb.closest(".crow").classList.toggle("picked", cb.checked); updateSelBar();
   });
   $("#selR1").onclick = ()=>addPicked("1");
   $("#selR2").onclick = ()=>addPicked("2");
@@ -2027,7 +2037,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.15";
+  const APP_VER = "2026-11-23.16";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

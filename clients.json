@@ -252,7 +252,12 @@
       "lat": "",
       "lng": "",
       "publicParking": [],
-      "publicParkingNote": "좌표·주변 공영주차장 확인 중 (네이버지도 링크 주시면 반영)"
+      "publicParkingNote": "좌표·주변 공영주차장 확인 중 (네이버지도 링크 주시면 반영)",
+      "approx": {
+        "lat": 37.535,
+        "lng": 127.078,
+        "ref": "자양동 부근"
+      }
     },
     {
       "id": "h-goodmorning-medi",
@@ -271,7 +276,12 @@
       "lat": "",
       "lng": "",
       "publicParking": [],
-      "publicParkingNote": ""
+      "publicParkingNote": "",
+      "approx": {
+        "lat": 37.6086,
+        "lng": 127.1611,
+        "ref": "도농역 부근"
+      }
     },
     {
       "id": "h-gangnam-michelan-dental",
@@ -290,7 +300,12 @@
       "lat": "",
       "lng": "",
       "publicParking": [],
-      "publicParkingNote": ""
+      "publicParkingNote": "",
+      "approx": {
+        "lat": 37.498,
+        "lng": 127.0276,
+        "ref": "강남역 부근"
+      }
     },
     {
       "id": "h-samsung-goodbone-rehab",
@@ -309,7 +324,12 @@
       "lat": "",
       "lng": "",
       "publicParking": [],
-      "publicParkingNote": ""
+      "publicParkingNote": "",
+      "approx": {
+        "lat": 37.5143,
+        "lng": 127.0602,
+        "ref": "봉은사역 부근"
+      }
     },
     {
       "id": "h-seoul-dangsin-im",
@@ -328,7 +348,12 @@
       "lat": "",
       "lng": "",
       "publicParking": [],
-      "publicParkingNote": ""
+      "publicParkingNote": "",
+      "approx": {
+        "lat": 37.5446,
+        "lng": 127.0557,
+        "ref": "성수역 부근"
+      }
     },
     {
       "id": "w-jv-pharm",
@@ -347,13 +372,23 @@
       "lat": "",
       "lng": "",
       "publicParking": [],
-      "publicParkingNote": ""
+      "publicParkingNote": "",
+      "approx": {
+        "lat": 37.57,
+        "lng": 127.057,
+        "ref": "답십리 부근"
+      }
     }
   ],
   "depot": {
     "name": "유안메디",
     "address": "경기 하남시 덕풍로65번길 22 3층",
     "lat": "",
-    "lng": ""
+    "lng": "",
+    "approx": {
+      "lat": 37.5414,
+      "lng": 127.2069,
+      "ref": "하남시청역 부근"
+    }
   }
 }

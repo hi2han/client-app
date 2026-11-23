@@ -251,6 +251,7 @@
   .cp-sum b{color:var(--brand);font-size:18px}
   .pbar{height:8px;background:var(--fill);border-radius:8px;margin-top:10px;overflow:hidden}
   .pbar i{display:block;height:100%;background:var(--brand);border-radius:8px;transition:width .3s}
+  .org{display:block;width:100%;border:0;background:none;color:var(--sub);font-size:13px;font-weight:600;padding:10px 0 0;cursor:pointer}
   .tbar{display:flex;gap:6px;overflow-x:auto;padding:2px 12px 4px;scrollbar-width:none}
   .tbar::-webkit-scrollbar{display:none}
   .tbar button{flex:none;border:0;background:var(--card);border-radius:12px;padding:10px 13px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap}
@@ -325,14 +326,14 @@
     <div class="cpanel" id="cPanel">
       <div class="cp-sum" id="cpCount"></div>
       <div class="pbar"><i id="cpBar"></i></div>
+      <button class="btn p" id="cSort" style="margin-top:14px">🚚 배송루트 정리</button>
+      <button class="org" id="cOrigin">🏁 유안메디 출발</button>
       <div class="chips" id="courseWho" style="display:none"></div>
       <div class="c-stat" id="cStat" style="display:none"></div>
       <div id="cpBody" hidden><button id="cpToggle"></button></div>
     </div>
     <div class="tbar" id="cTools">
-      <button id="cRoute">🧭 전체 경로</button>
-      <button id="cSort">📍 동선순 정렬</button>
-      <button id="cOrigin">🏁 출발지</button>
+      <button id="cRoute">🧭 네이버로 전체 경로</button>
       <button id="cHist">📅 지난 코스</button>
       <button id="cReset">↺ 새 코스</button>
     </div>
@@ -433,6 +434,12 @@
     return {lat:+la.toFixed(7), lng:+ln.toFixed(7)};
   }
   function hasXY(c){ return c && parseCoord(c.lat, c.lng); }
+  // 정렬·거리 계산용 위치: 정확한 좌표 → 이 폰에서 GPS로 잡은 좌표 → 대략 위치(근처 역 기준)
+  function sortXY(c){
+    if(!c) return null;
+    return hasXY(c) || ((settings.gpsXY||{})[c.id] ? parseCoord(settings.gpsXY[c.id].lat, settings.gpsXY[c.id].lng) : null)
+      || (c.approx ? parseCoord(c.approx.lat, c.approx.lng) : null);
+  }
   function shortName(c){ return String(c.name||"").replace(/^샘플\)\s*/,""); }
 
   // ---------- search (부분일치 / 초성 / 비슷한 이름) ----------
@@ -542,7 +549,7 @@
   if(!Array.isArray(settings.hidden)) settings.hidden=[];
   if(!Array.isArray(settings.memos)) settings.memos=[];
   let staffList = lsGet("clientParkApp.staff.v1", []);
-  const DEFAULT_DEPOT = {name:"유안메디", address:"경기 하남시 덕풍로65번길 22 3층", lat:"", lng:""};
+  const DEFAULT_DEPOT = {name:"유안메디", address:"경기 하남시 덕풍로65번길 22 3층", lat:"", lng:"", approx:{lat:37.5414, lng:127.2069, ref:"하남시청역 부근"}};
   let depot = lsGet("clientParkApp.depot.v1", DEFAULT_DEPOT);
   const isAdmin = () => !!settings.token;
   function saveSettings(){ lsSet(LSET, settings); }
@@ -679,7 +686,7 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["adminNote","closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["adminNote","approx","closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
@@ -924,6 +931,7 @@
     // 이미 코스에 있는 곳은 차수만 바꿈
     already.forEach(id=>{ const st = course.stops.find(x=>x.id===id && !x.done); if(st) st.round = round; });
     addStops(ids.filter(id=>!already.includes(id)), round);
+    { const g = originXY(); if(g) doSort(g, curOrigin().name||"출발지", true); }   // 추가하면 자동으로 배송루트 정리
     pickSel.clear(); updateSelBar(); render();
     toast(`✓ ${ids.length}곳 → ${round}차 코스 · 코스 보기 ›`);
     { const t=$("#toast"); t.style.cursor="pointer"; t.onclick=()=>{ t.classList.remove("show"); go("course"); };
@@ -1665,8 +1673,8 @@
     const out = [];
     order.forEach(k=>{
       const g = groups[k];
-      const withXY = g.filter(x=>hasXY(cById(x.cid))), noXY = g.filter(x=>!hasXY(cById(x.cid)));
-      const pt = x=>hasXY(cById(x.cid));
+      const withXY = g.filter(x=>sortXY(cById(x.cid))), noXY = g.filter(x=>!sortXY(cById(x.cid)));
+      const pt = x=>sortXY(cById(x.cid));
       // 시작점: 출발지(회사/현재 위치)에서 가장 가까운 곳. 출발지가 없으면 맨 위 거래처
       const rest = withXY.slice(); const path = [];
       if(rest.length && !origin){ path.push(rest.shift()); }
@@ -1899,7 +1907,7 @@
     const d = course.date ? course.date.slice(5).replace("-","/") : "";
     $("#courseDate").textContent = d;
     let km = 0;
-    for(let i=1;i<pending.length;i++){ const A=hasXY(cById(pending[i-1].id)), B=hasXY(cById(pending[i].id)); if(A&&B) km += kmDist(A,B); }
+    for(let i=1;i<pending.length;i++){ const A=sortXY(cById(pending[i-1].id)), B=sortXY(cById(pending[i].id)); if(A&&B) km += kmDist(A,B); }
     $("#cpCount").innerHTML = total
       ? `<b>${done.length}</b> / ${total}곳 완료 · 남은 ${pending.length}곳${urg?` · <span style="color:var(--hard);font-weight:800">긴급 ${urg}</span>`:""}${km>=1?` <span style="color:var(--sub);font-weight:500">· 남은 거리 약 ${Math.round(km)}km</span>`:""}`
       : "아직 오늘 코스가 없어요";
@@ -1923,7 +1931,7 @@
       html += `<div class="sub-t">이후 코스 ${pending.length-1}곳 <span class="meta" style="font-weight:500">· 눌러서 순서·긴급 조정</span></div><div class="tl">`;
       for(let i=1;i<pending.length;i++){
         const st = pending[i], c = cById(st.id); if(!c) continue;
-        const A = hasXY(cById(pending[i-1].id)), B = hasXY(c);
+        const A = sortXY(cById(pending[i-1].id)), B = sortXY(c);
         if(A&&B) html += `<div class="tl-gap">↓ ${fmtDist(kmDist(A,B))}</div>`;
         const pk = PARK[c.parking||"unk"], w = closedWarn(c, sRound(st));
         html += `<div class="tl-row" data-menu="${esc(st.id)}">
@@ -2013,30 +2021,44 @@
       const pending = course.stops.filter(x=>!x.done), done = course.stops.filter(x=>x.done && x!==s);
       course.stops = pending.concat([s], done);
       saveCourse(); toast("완료! 다음 목적지로 넘어가요");
+      captureOnDone(id);
       window.scrollTo({top:0,behavior:"smooth"});
+  }
+  // 정확한 좌표가 없는 거래처는 완료 누를 때 현재 위치를 좌표로 저장 (근처일 때만)
+  async function captureOnDone(id){
+    const c = cById(id); if(!c || hasXY(c) || !navigator.geolocation) return;
+    let g; try{ g = await getGPS(); }catch(e){ return; }
+    const ap = c.approx ? parseCoord(c.approx.lat, c.approx.lng) : null;
+    if(ap && kmDist(ap, g) > 2.5) return;               // 거래처와 멀리 떨어진 곳에서 누른 경우는 저장 안 함
+    settings.gpsXY = Object.assign({}, settings.gpsXY, {[id]:{lat:g.lat, lng:g.lng}}); saveSettings();
+    if(isAdmin()){
+      try{ await publish(d=>{ const t = d.clients.find(x=>x.id===id); if(t && !parseCoord(t.lat,t.lng)){ t.lat = g.lat; t.lng = g.lng; } }, "완료 위치로 좌표 저장: "+c.name);
+        toast(`📍 ${shortName(c)} 위치를 좌표로 저장했어요`); }catch(e){}
+    }
   }
   // ── 출발지: 기본은 회사(관리자가 정함), 내 폰에서만 바꿀 수도 있음 ──
   function curOrigin(){ const o = settings.origin; return (o && o.address!==undefined) ? o : depot; }
-  function originXY(){ const o = curOrigin(); return parseCoord(o.lat, o.lng); }
+  function originXY(){ const o = curOrigin(); return parseCoord(o.lat, o.lng) || (o.approx ? parseCoord(o.approx.lat, o.approx.lng) : null); }
+  function originExact(){ const o = curOrigin(); return !!parseCoord(o.lat, o.lng); }
   function renderOrigin(){
     const el = $("#cOrigin"); if(!el) return;
-    const o = curOrigin(), ok = !!originXY();
-    el.textContent = "🏁 " + (o.name||"출발지") + " 출발" + (ok ? "" : " ⚠️");
-    el.title = (o.address||"") + (settings.origin ? " (내 폰 설정)" : " (기본값)") + (ok ? "" : " · 좌표 필요");
+    const o = curOrigin();
+    el.textContent = `🏁 ${o.name||"출발지"} 출발${settings.origin?" (내 폰 설정)":""} · 변경 ›`;
   }
-  function doSort(origin, label){
+  function doSort(origin, label, silent){
     reorderPending(p=>{
       const urg = p.filter(st=>st.urgent), rest = p.filter(st=>!st.urgent);
       const sorted = sortByRoute(rest.map(st=>({cid:st.id, round:sRound(st), staff:"", st})), origin).map(x=>x.st);
       p.splice(0, p.length, ...urg, ...sorted);
     });
-    toast(`${label}에서 가까운 순서로 정렬했어요 (급한 곳은 맨 앞 유지)`);
+    if(!silent) toast(`🚚 ${label} 출발 기준으로 배송루트를 정리했어요`);
   }
   function getGPS(){ return new Promise((res,rej)=>{
     if(!navigator.geolocation){ rej(new Error("이 기기는 위치를 지원하지 않아요")); return; }
     navigator.geolocation.getCurrentPosition(p=>res({lat:+p.coords.latitude.toFixed(7), lng:+p.coords.longitude.toFixed(7)}),
       e=>rej(new Error(e.code===1?"위치 권한이 꺼져 있어요 (설정 > Safari > 위치)":"현재 위치를 못 가져왔어요")), {enableHighAccuracy:true, timeout:12000}); }); }
   $("#cSort").onclick = ()=>{
+    if(!course.stops.some(s=>!s.done)){ toast("코스에 거래처를 먼저 추가하세요"); return; }
     const g = originXY();
     if(g){ doSort(g, curOrigin().name||"출발지"); return; }
     openSheet(`<h2>출발지 좌표가 아직 없어요</h2><p class="hint">${esc(curOrigin().name||"출발지")} 좌표가 있어야 출발지 기준으로 정렬돼요.</p>
@@ -2173,7 +2195,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.19";
+  const APP_VER = "2026-11-24.1";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

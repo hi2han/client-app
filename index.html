@@ -1010,7 +1010,8 @@
 
       <div class="sec"><div class="sec-t">좌표 (네이버 경로 자동 입력에 필요)</div>
         <input class="in" id="dXY" inputmode="decimal" placeholder="위도, 경도  예) 37.5000, 127.0364" value="${hasXY(c)?esc(c.lat+", "+c.lng):""}">
-        <div class="hint" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"⚠️ 좌표 없음 — 전체 경로 보내기에서 빠져요"}</div>
+        <button class="act" id="dGps" style="width:100%;margin-top:8px">📍 지금 있는 위치로 채우기 (거래처 앞에서 누르세요)</button>
+        <div class="hint" id="dXYmsg" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"⚠️ 좌표 없음 — 전체 경로·동선 정렬에서 빠져요"}</div>
       </div>
       <div class="sec"><div class="sec-t">⛔ 휴진 (누를 때마다: 없음 → 오후 → 오전 → 종일)</div>
         <div class="tgl" id="tClosed">${[1,2,3,4,5,6,0].map(d=>{ const v=closedMap(editing)[d]; return `<button data-d="${d}" class="${v?"on":""}">${DAYS[d]}${v?" "+PART[v]:""}</button>`; }).join("")}</div>
@@ -1046,6 +1047,9 @@
     bindSeg("sBld", k=>editing.building=k);
     bindToggles("tStaff", editing.assignees);
     editing.closed = Object.assign({}, closedMap(c));
+    { const gb = $("#dGps"); if(gb) gb.onclick = async ()=>{ $("#dXYmsg").textContent = "위치 확인 중…";
+        try{ const g = await getGPS(); $("#dXY").value = g.lat+", "+g.lng; $("#dXYmsg").textContent = "✅ 현재 위치를 넣었어요 · 아래 저장을 눌러야 반영돼요"; }
+        catch(e){ $("#dXYmsg").textContent = "⚠️ "+e.message; } }; }
     const tc = $("#tClosed"); if(tc) tc.onclick = e=>{ const b=e.target.closest("button"); if(!b) return; const d=b.dataset.d;
       const next = {undefined:"pm", pm:"am", am:"all", all:undefined}[editing.closed[d]];
       if(next) editing.closed[d]=next; else delete editing.closed[d];
@@ -2140,7 +2144,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.17";
+  const APP_VER = "2026-11-23.18";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

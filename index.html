@@ -16,8 +16,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --bg:#f4f5f7; --card:#fff; --ink:#17191c; --sub:#6b7280; --line:#e5e7eb;
-    --brand:#03a94d; --brand-soft:#e3f6ea;
+    --bg:#f2f4f6; --card:#fff; --ink:#191f28; --sub:#8b95a1; --line:#e5e8eb;
+    --brand:#3182f6; --brand-soft:#e8f3ff; --fill:#f2f4f6;
     --easy:#0f9d58; --easy-soft:#e6f4ea;
     --mid:#c77700; --mid-soft:#fff4e0;
     --hard:#d93025; --hard-soft:#fce8e6;
@@ -27,7 +27,7 @@
   }
   @media (prefers-color-scheme: dark){
     :root{ --bg:#111315; --card:#1b1e22; --ink:#eceff3; --sub:#9aa3ad; --line:#2b3036;
-      --brand:#2fd178; --brand-soft:#15301f; --easy-soft:#16301f; --mid-soft:#3a2b10; --hard-soft:#3b1a18; --unk-soft:#24282d; --blue:#5b9bff; --blue-soft:#1d2a40; }
+      --brand:#4c9aff; --brand-soft:#1a2a44; --fill:#24282d; --easy-soft:#16301f; --mid-soft:#3a2b10; --hard-soft:#3b1a18; --unk-soft:#24282d; --blue:#5b9bff; --blue-soft:#1d2a40; }
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px}
@@ -164,6 +164,64 @@
   .selbar .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
   .selbar button{border:0;border-radius:12px;padding:13px 10px;font-weight:700;cursor:pointer}
   @media (prefers-color-scheme: dark){ mark{background:#5a4b00} }
+  /* ===== Toss 스타일 ===== */
+  html,body{font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;letter-spacing:-.2px}
+  header{padding-bottom:10px}
+  h1{font-size:22px;font-weight:800}
+  .search{border:0;border-radius:14px;padding:0 6px 0 14px;background:var(--card)}
+  .search input{padding:14px 0;font-size:15.5px}
+  .fbtn{flex:none;border:0;background:var(--fill);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .fbtn.on{background:var(--brand);color:#fff}
+  .ibtn{border:0;background:var(--card);border-radius:12px;min-width:40px;height:40px;padding:0 10px;font-size:15px;cursor:pointer}
+  #filterBox{background:var(--card);border-radius:16px;padding:6px 12px 12px;margin-top:8px}
+  .tabs{border:0;background:var(--fill);border-radius:12px}
+  .tabs button{padding:10px 0;font-size:14px}
+  .tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .chip{border:0;background:var(--fill);padding:8px 13px;font-size:13.5px;font-weight:500}
+  .chip.on{background:var(--ink);color:var(--card)}
+  .card{border:0;border-radius:20px;padding:18px}
+  .name{font-size:17px;font-weight:700}
+  .meta{font-size:13.5px}
+  .addr{font-size:14px;color:var(--sub)}
+  .note{background:var(--fill);border-radius:12px;font-size:13.5px}
+  .subline{font-size:13px;color:var(--sub);margin-top:8px;cursor:pointer}
+  .badge{font-size:12px;padding:5px 10px}
+  .tag{border-radius:6px;font-size:12px}
+  .act{border:0;background:var(--fill);border-radius:12px;padding:12px 2px;font-size:13.5px;font-weight:600}
+  .act.primary{background:var(--brand-soft);color:var(--brand)}
+  .btn{border-radius:16px;padding:16px;font-size:16px}
+  .btn.p{background:var(--brand)}
+  .btn.g{background:var(--fill)}
+  .cpanel{border:0;border-radius:22px;padding:18px;margin:6px 12px 10px;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+  .cp-title{font-size:18px;font-weight:800}
+  .cp-sum{font-size:13.5px;color:var(--sub);margin-top:2px}
+  .cp-sum b{color:var(--brand)}
+  .cp-toggle{border:0;background:var(--fill);padding:9px 14px;font-weight:700}
+  .cpanel .card{background:var(--fill);padding:16px}
+  .cpanel .card.next{background:var(--card);border:2px solid var(--brand);padding:18px}
+  .next-label{font-size:13px;color:var(--brand);font-weight:800}
+  .card.next .name{font-size:21px;font-weight:800;line-height:1.3}
+  .card.next .num{display:none}
+  .num{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+  .num.urgent{background:var(--hard);color:#fff;border:0}
+  .bigacts{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-top:14px}
+  .bigacts a,.bigacts button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:60px;border:0;border-radius:16px;font-size:15px;font-weight:800;text-decoration:none;cursor:pointer;color:var(--ink);background:var(--fill)}
+  .bigacts .go{background:var(--brand);color:#fff}
+  .bigacts .fin{background:var(--easy);color:#fff}
+  .bigacts small{font-size:11.5px;font-weight:600;opacity:.85}
+  .ctl{gap:6px}
+  .ctl button,.ctl a{border:0;background:var(--card);border-radius:10px;padding:10px 0;font-size:13px;font-weight:600}
+  .card.next .ctl button{background:var(--fill)}
+  .ctl .ok{background:var(--easy);color:#fff}
+  .pubmini{background:var(--fill);border-radius:14px;padding:4px 12px;margin-top:10px}
+  .pubmini .r{display:flex;align-items:center;gap:8px;padding:8px 0}
+  .pubmini .r+.r{border-top:1px solid var(--line)}
+  .pubmini a{flex:none;background:var(--card);color:var(--brand);border-radius:10px;padding:8px 12px;font-weight:700;font-size:13px;text-decoration:none}
+  .sub-t{font-size:14px;color:var(--ink);padding:14px 4px 2px}
+  .selbar button{border-radius:14px;padding:15px 10px}
+  .sheet{border-radius:24px 24px 0 0}
+  .in{border:0;background:var(--fill);border-radius:12px;padding:13px 14px}
+  .fab .add{display:none}
 </style>
 </head>
 <body>
@@ -175,27 +233,31 @@
         <h1>거래처</h1>
         <div style="display:flex;align-items:center;gap:10px">
           <button class="sync" id="btnWho" style="border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--ink);font-weight:700"><span class="dot" id="syncDot" style="display:none"></span><span id="syncTxt">연결 중…</span></button>
-          <button id="btnMenu" aria-label="메뉴" style="border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;cursor:pointer">⋯</button>
+          <button class="ibtn" id="btnMemo2" aria-label="메모장">📝</button>
+          <button class="ibtn" id="btnMenu" aria-label="메뉴">⋯</button>
         </div>
       </div>
       <div class="search">
         <span aria-hidden="true">🔍</span>
-        <input id="q" type="search" placeholder="이름 일부·초성 검색 (예: 서울아산, ㅅㅇㅇㅅ)" autocomplete="off">
+        <input id="q" type="search" placeholder="거래처 검색 (초성 OK)" autocomplete="off">
+        <button class="fbtn" id="btnFilter">필터</button>
       </div>
-      <div class="chips" id="staffChips" style="display:none"></div>
-      <div class="tabs" id="catTabs"></div>
-      <div class="chips" id="parkChips"></div>
-      <div class="chips" id="areaChips"></div>
+      <div id="filterBox" hidden>
+        <div class="chips" id="staffChips" style="display:none"></div>
+        <div class="tabs" id="catTabs"></div>
+        <div class="chips" id="parkChips"></div>
+        <div class="chips" id="areaChips"></div>
+      </div>
     </header>
     <div class="cpanel" id="cPanel">
       <div class="cp-head">
-        <div class="cp-title">🚚 <span id="cpWho">내 </span>오늘 코스<small id="courseDate"></small><small id="cpCount"></small></div>
+        <div><div class="cp-title"><span id="cpWho">내 </span>오늘 코스<small id="courseDate"></small></div><div class="cp-sum" id="cpCount"></div></div>
         <button class="cp-toggle" id="cpToggle">펼치기 ▼</button>
       </div>
       <div class="c-head" id="cpBody" style="display:none">
         <div class="chips" id="courseWho" style="display:none"></div>
         <div class="c-stat" id="cStat"></div>
-        <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
+        <button class="btn p" id="cRoute" style="margin-top:12px">🧭 전체 경로 네이버지도로 보내기</button>
         <div class="c-tools" id="cTools" style="grid-template-columns:1fr 1fr">
           <button class="act" id="cSort">📍 동선순 정렬</button>
           <button class="act" id="cOrigin" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏁 출발지</button>
@@ -561,7 +623,7 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["adminNote","closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
@@ -648,6 +710,8 @@
   }
   function renderChips(){
     renderStaffChips();
+    { const n = [fCat!=="all", fPark!=="all", fArea!=="all", (fStaff||"all")!=="all"].filter(Boolean).length;
+      const fb = $("#btnFilter"); fb.textContent = n ? `필터 ${n}` : "필터"; fb.classList.toggle("on", n>0); }
     const vis = clients.filter(c=>!isHidden(c.id) && staffOk(c));
     const cc = {all:vis.length,hospital:0,wholesale:0,etc:0};
     vis.forEach(c=>cc[catOf(c)]++);
@@ -719,16 +783,15 @@
   function pubSummary(c){
     const l = pubList(c);
     if(!l.length && !c.publicParkingNote) return "";
-    return `<div class="note" data-open="${esc(c.id)}" style="background:var(--blue-soft)">🅿️ 공영: ${l.length?esc(l.map(p=>p.name+(p._km!=null?" ("+fmtDist(p._km)+")":"")).join(", ")):"근처 공영주차장 없음 (상세 참고)"}</div>`;
+    return `<div class="subline" data-open="${esc(c.id)}">🅿️ 공영 · ${l.length?esc(l.slice(0,2).map(p=>p.name.replace(/ ?공영주차장/,"")+(p._km!=null?" "+fmtDist(p._km):"")).join(", ")):"근처 없음"}</div>`;
   }
-  // 코스 카드용: 공영주차장마다 바로 길찾기 버튼
+  // 다음 목적지 카드용: 한 줄씩 + 가기 버튼
   function pubInline(c){
-    const l = pubList(c);
-    if(!l.length) return c.publicParkingNote ? `<div class="note" style="background:var(--blue-soft)">🅿️ 공영: 근처 공영주차장 없음 · ${esc(c.publicParkingNote.split(/[.→]/)[0])}</div>` : "";
-    return `<div class="note" style="background:var(--blue-soft)"><b>🅿️ 근처 공영주차장 (가까운 순)</b>
-      ${l.map(p=>{ const href = IS_PC ? pubWebDir(p) : pubApp(p);
-        return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${pubTag(p)}${p.note?`<div class="meta">${esc(p.note)}</div>`:""}</div>
-          <a class="act primary" style="flex:none;padding:7px 10px" href="${esc(href)}"${IS_PC?' target="_blank" rel="noopener"':""}>🧭 가기</a></div>`; }).join("")}</div>`;
+    const l = pubList(c).slice(0,2);
+    if(!l.length) return "";
+    return `<div class="pubmini">${l.map(p=>{ const href = IS_PC ? pubWebDir(p) : pubApp(p);
+      return `<div class="r"><div style="flex:1;min-width:0;font-size:14px"><b>🅿️ ${esc(p.name.replace(/ ?공영주차장/," 공영"))}</b> <span class="meta">${p._km!=null?fmtDist(p._km):"주소 기준"}</span></div>
+        <a href="${esc(href)}"${IS_PC?' target="_blank" rel="noopener"':""}>가기</a></div>`; }).join("")}</div>`;
   }
   function pubSection(c){
     const l = pubList(c);
@@ -810,7 +873,7 @@
           ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
           <a class="act" href="${esc(IS_PC?W.pin(c):L.place(c))}" target="_blank" rel="noopener">📍 위치</a>
           <a class="act primary" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
-          <button class="act ${ic?"in-course":""}" data-course="${esc(c.id)}">${ic?"코스 빼기":"＋ 1차"}</button>
+          <button class="act ${ic?"in-course":""}" data-course="${esc(c.id)}">${ic?"코스 빼기":"＋ 코스"}</button>
         </div>
       </div>`;
     }).join("");
@@ -846,6 +909,7 @@
       ${enf.length?`<div class="row"><span>주의</span><span>${enf.map(e=>`<span class="tag">${esc(e)}</span>`).join(" ")}</span></div>`:""}
       ${c.parkingSpot?`<div class="row"><span>추천 장소</span><span>${esc(c.parkingSpot)}</span></div>`:""}
       ${c.parkingNote?`<div class="note">${esc(c.parkingNote)}</div>`:""}
+      ${isAdmin()&&c.adminNote?`<div class="note" style="background:var(--mid-soft)">🔒 관리자 메모: ${esc(c.adminNote)}</div>`:""}
     </div>`;
   }
   function detail(id){
@@ -1656,36 +1720,40 @@
         <div class="name">${esc(c.name)}</div><div class="meta">${esc(area(c.address))} · 완료 ${esc(s.doneAt||"")}</div></div>
         <button class="act" style="flex:none;padding:6px 10px" data-undo="${esc(s.id)}">되돌리기</button></div></div>`;
     }
-    return `<div class="card ${isNext?"next":""}">
-      ${isNext?`<div class="next-label">▶ 다음 목적지</div>`:""}
-      <div class="stop"><div class="num ${s.urgent?"urgent":""}">${s.urgent?"!":idx+1}</div>
-        <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer">
-          <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}</div>
-          ${dueBadge(s)?`<div class="tags" style="margin-top:4px">${dueBadge(s)}</div>`:""}
-          <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div>
-        </div>
-        <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
-      </div>
-      ${tagsHtml(c, sRound(s))}
-      ${info?`<div class="note">${esc(info)}</div>`:""}
-      ${isNext ? pubInline(c) : pubSummary(c)}
-      ${isNext?`<a class="btn p navgo" href="${esc(navHref(c))}"${navAttr}>${NAV_LABEL}</a>
-        <div class="acts" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
-          <a class="act" href="${esc(L.place(c))}" target="_blank" rel="noopener">🌐 웹 지도</a>
-          <a class="act" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
-          ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
-        </div>`:""}
-      <div class="ctl" style="grid-template-columns:${isNext?"repeat(5,1fr)":"repeat(6,1fr)"}">
-        <button data-rnd="${esc(s.id)}" style="background:var(--blue-soft);color:var(--blue);border-color:transparent;font-weight:700">${sRound(s)}차 ⇄</button>
+    const ctl = `<div class="ctl" style="grid-template-columns:${isNext?"repeat(5,1fr)":"repeat(6,1fr)"}">
+        <button data-rnd="${esc(s.id)}" style="color:var(--brand);font-weight:800">${sRound(s)}차 ⇄</button>
         <button data-up="${esc(s.id)}" aria-label="위로">▲</button>
         <button data-down="${esc(s.id)}" aria-label="아래로">▼</button>
         <button class="urg ${s.urgent||s.due?"on":""}" data-urg="${esc(s.id)}">🚨 ${s.urgent?"긴급":s.due?"마감":"우선"}</button>
-        <button data-x="${esc(s.id)}">✕ 빼기</button>
-        ${isNext?"":`<button class="ok" data-done="${esc(s.id)}">✅ 완료</button>`}
+        <button data-x="${esc(s.id)}">빼기</button>
+        ${isNext?"":`<button class="ok" data-done="${esc(s.id)}">완료</button>`}
+      </div>`;
+    const head = `<div class="stop"><div class="num ${s.urgent?"urgent":""}">${s.urgent?"!":idx+1}</div>
+        <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer">
+          <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}</div>
+          ${dueBadge(s)?`<div class="tags" style="margin-top:4px">${dueBadge(s)}</div>`:""}
+          <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${(!hasXY(c)&&isAdmin())?' · <span style="color:var(--mid)">좌표 없음</span>':""}</div>
+        </div>
+        <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
+      </div>`;
+    if(!isNext){
+      return `<div class="card">${head}${tagsHtml(c, sRound(s))}${ctl}</div>`;
+    }
+    const fin = after
+      ? `<a class="fin" href="${esc(navHref(after))}"${navAttr} data-done="${esc(s.id)}" data-nav="1">✅ 완료<small>다음 길안내</small></a>`
+      : `<button class="fin" data-done="${esc(s.id)}">✅ 완료<small>마지막</small></button>`;
+    return `<div class="card next">
+      <div class="next-label">다음 목적지</div>
+      ${head}
+      ${tagsHtml(c, sRound(s))}
+      ${info?`<div class="note">${esc(info)}</div>`:""}
+      ${pubInline(c)}
+      <div class="bigacts">
+        <a class="go" href="${esc(navHref(c))}"${navAttr}>🧭 길찾기</a>
+        ${c.phone?`<a href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span style="display:flex;align-items:center;justify-content:center;border-radius:16px;background:var(--fill);opacity:.4;font-weight:800">📞 없음</span>`}
+        ${fin}
       </div>
-      ${isNext ? (after
-        ? `<a class="btn donego" href="${esc(navHref(after))}"${navAttr} data-done="${esc(s.id)}" data-nav="1">✅ 완료 → 다음 「${esc(after.name.replace(/^샘플\)\s*/,""))}」 길찾기</a>`
-        : `<button class="btn donego" data-done="${esc(s.id)}">✅ 완료 (마지막 거래처)</button>`) : ""}
+      <div style="margin-top:8px">${ctl}</div>
     </div>`;
   }
   let courseWho = "me";   // "me" = 내 코스, 그 외 = 직원 이름 (배차 기준 코스 보기)
@@ -1705,6 +1773,7 @@
   }
   function renderStaffCourse(name){
     const list = staffCourse(name);
+    $("#cStat").style.display = "";
     $("#cStat").innerHTML = ROUNDS.map(([k,l])=>`<div><b>${list.filter(x=>x.round===k).length}</b><span>${l}</span></div>`).join("")+`<div><b>${list.length}</b><span>전체</span></div>`;
     $("#cTools").style.display = "none";
     $("#courseDate").textContent = today().slice(5).replace("-","/")+" · "+name;
@@ -1733,16 +1802,18 @@
     renderOrigin();
     renderCourseWho();
     if(courseWho!=="me"){ renderStaffCourse(courseWho); return; }
-    $("#cStat").innerHTML = `<div><b id="stLeft">0</b><span>남은 곳</span></div><div><b id="stUrg">0</b><span>긴급</span></div><div><b id="stDone">0</b><span>완료</span></div>`;
+    $("#cStat").style.display = "none";
     $("#cTools").style.display = "";
     $("#cpBody").style.display = courseOpen ? "" : "none";
-    $("#cpToggle").textContent = courseOpen ? "접기 ▲" : "펼치기 ▼";
+    $("#cpToggle").textContent = courseOpen ? "접기" : "전체 보기";
     { const pend = course.stops.filter(st=>!st.done), r1 = pend.filter(st=>sRound(st)==="1").length;
-      $("#cpCount").textContent = course.stops.length ? ` · 남은 ${pend.length} (1차 ${r1}/2차 ${pend.length-r1}) · 완료 ${course.stops.length-pend.length}` : ""; }
+      const urg = pend.filter(st=>st.urgent).length, r2 = pend.length-r1;
+      $("#cpCount").innerHTML = course.stops.length
+        ? `남은 <b>${pend.length}</b>곳${r1&&r2?` (1차 ${r1} · 2차 ${r2})`:""}${urg?` · <b style="color:var(--hard)">긴급 ${urg}</b>`:""} · 완료 ${course.stops.length-pend.length}`
+        : "거래처를 ☑ 체크해서 코스에 추가하세요"; }
     const d = course.date ? course.date.slice(5).replace("-","/") : "";
-    $("#courseDate").textContent = d ? d+" 코스" : "";
+    $("#courseDate").textContent = d ? d : "";
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
-    $("#stLeft").textContent = pending.length; $("#stUrg").textContent = pending.filter(s=>s.urgent).length; $("#stDone").textContent = done.length;
     if(!course.stops.length){
       $("#courseList").innerHTML = `<div class="hint" style="padding:6px 2px 2px">아래 목록에서 거래처를 ☑ 체크하고 <b>1차 / 2차로 코스 추가</b>를 누르세요.${lsGet(histKey(),null)?" 지난 코스는 펼치기 → 📅 지난 코스.":""}</div>`;
       return;
@@ -1758,7 +1829,7 @@
       // 접힌 상태: 경고 + 다음 목적지 카드만
       if(pending.length) html += stopHtml(pending[0], 0, true, after);
       else html += `<div class="empty" style="padding:14px">🎉 오늘 코스를 모두 완료했어요!</div>`;
-      if(pending.length>1) html += `<button class="act" style="width:100%;margin-top:8px" id="cpMore">나머지 ${pending.length-1}곳 · 코스 기능 펼치기 ▼</button>`;
+      if(pending.length>1) html += `<button class="act" style="width:100%;margin-top:10px;padding:14px" id="cpMore">다음 ${pending.length-1}곳 더 보기 · ${esc(pending.slice(1,3).map(x=>{const cc=cById(x.id);return cc?shortName(cc):""}).join(", "))}${pending.length>3?" …":""}</button>`;
       $("#courseList").innerHTML = html;
       const m = $("#cpMore"); if(m) m.onclick = ()=>{ courseOpen = true; renderCourse(); };
       return;
@@ -1950,11 +2021,13 @@
   $("#btnUp").onclick = uploadSheet;
   $("#btnAdd").onclick = ()=>form(null);
   $("#btnMemo").onclick = memoSheet;
+  $("#btnMemo2").onclick = memoSheet;
+  $("#btnFilter").onclick = ()=>{ const fb = $("#filterBox"); fb.hidden = !fb.hidden; };
 
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.14";
+  const APP_VER = "2026-11-23.15";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

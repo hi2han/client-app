@@ -220,7 +220,7 @@
       "freeTime": "",
       "enforce": [],
       "parkingSpot": "",
-      "parkingNote": "⚠️ 좌표는 같은 길 78·104번지 기준 추정 (오차 100m 내외) · 주차 정보 확인 필요",
+      "parkingNote": "주차 정보 확인 필요",
       "lat": 37.5468,
       "lng": 127.2138,
       "publicParking": [
@@ -232,7 +232,8 @@
           "lng": 127.214237196605
         }
       ],
-      "publicParkingNote": ""
+      "publicParkingNote": "",
+      "adminNote": "좌표는 같은 길 78·104번지 기준 추정 (오차 100m 내외)"
     },
     {
       "id": "w-ms-pharm",

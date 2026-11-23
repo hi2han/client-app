@@ -195,6 +195,7 @@
       <div class="c-head" id="cpBody" style="display:none">
         <div class="chips" id="courseWho" style="display:none"></div>
         <div class="c-stat" id="cStat"></div>
+        <div class="pick" id="cOrigin" style="margin-top:10px;cursor:pointer"></div>
         <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
         <div class="c-tools" id="cTools" style="grid-template-columns:1fr 1fr 1fr">
           <button class="act" id="cHist">📅 지난 코스</button>
@@ -424,6 +425,8 @@
   if(!Array.isArray(settings.hidden)) settings.hidden=[];
   if(!Array.isArray(settings.memos)) settings.memos=[];
   let staffList = lsGet("clientParkApp.staff.v1", []);
+  const DEFAULT_DEPOT = {name:"유안메디", address:"경기 하남시 덕풍로65번길 22 3층", lat:"", lng:""};
+  let depot = lsGet("clientParkApp.depot.v1", DEFAULT_DEPOT);
   const isAdmin = () => !!settings.token;
   function saveSettings(){ lsSet(LSET, settings); }
   function isHidden(id){ return settings.hidden.includes(id); }
@@ -578,6 +581,7 @@
   function applyShared(data, firstRun, silent){
     staffList = Array.isArray(data.staff) ? data.staff.filter(Boolean) : [];
     lsSet("clientParkApp.staff.v1", staffList);
+    if(data.depot && data.depot.address){ depot = data.depot; lsSet("clientParkApp.depot.v1", depot); }
     const ids = new Set();
     let added = 0, changed = 0, removed = 0;
     data.clients.forEach(sv=>{
@@ -1498,7 +1502,7 @@
     });
   }
   // 1차/2차·직원별로 묶어서, 좌표 기준 가까운 곳부터 이어지게 정렬 (좌표 없으면 지역·주소순으로 뒤에)
-  function sortByRoute(items){
+  function sortByRoute(items, origin){
     const dist = (a,b)=>{ const R=6371, toR=Math.PI/180; const dLat=(b.lat-a.lat)*toR, dLng=(b.lng-a.lng)*toR;
       const x = Math.sin(dLat/2)**2 + Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
     const groups = {}; const order = [];
@@ -1509,11 +1513,11 @@
       const g = groups[k];
       const withXY = g.filter(x=>hasXY(cById(x.cid))), noXY = g.filter(x=>!hasXY(cById(x.cid)));
       const pt = x=>hasXY(cById(x.cid));
-      // 시작점: 현재 그룹의 첫 번째 거래처(관리자가 맨 위에 둔 곳)
+      // 시작점: 출발지(회사/현재 위치)에서 가장 가까운 곳. 출발지가 없으면 맨 위 거래처
       const rest = withXY.slice(); const path = [];
-      if(rest.length){ path.push(rest.shift()); }
+      if(rest.length && !origin){ path.push(rest.shift()); }
       while(rest.length){
-        const last = pt(path[path.length-1]); let bi=0, bd=Infinity;
+        const last = path.length ? pt(path[path.length-1]) : origin; let bi=0, bd=Infinity;
         rest.forEach((x,i)=>{ const d=dist(last, pt(x)); if(d<bd){ bd=d; bi=i; } });
         path.push(rest.splice(bi,1)[0]);
       }
@@ -1726,6 +1730,7 @@
   }
   let courseOpen = false;
   function renderCourse(){
+    renderOrigin();
     renderCourseWho();
     if(courseWho!=="me"){ renderStaffCourse(courseWho); return; }
     $("#cStat").innerHTML = `<div><b id="stLeft">0</b><span>남은 곳</span></div><div><b id="stUrg">0</b><span>긴급</span></div><div><b id="stDone">0</b><span>완료</span></div>`;
@@ -1799,14 +1804,63 @@
       saveCourse(); toast("완료! 다음 목적지로 넘어가요");
       window.scrollTo({top:0,behavior:"smooth"});
   }
-  $("#cSort").onclick = ()=>{
+  // ── 출발지: 기본은 회사(관리자가 정함), 내 폰에서만 바꿀 수도 있음 ──
+  function curOrigin(){ const o = settings.origin; return (o && o.address!==undefined) ? o : depot; }
+  function originXY(){ const o = curOrigin(); return parseCoord(o.lat, o.lng); }
+  function renderOrigin(){
+    const el = $("#cOrigin"); if(!el) return;
+    const o = curOrigin(), mine = !!settings.origin, ok = !!originXY();
+    el.innerHTML = `<div style="flex:1;min-width:0"><b>🏁 출발지: ${esc(o.name||"출발지")}</b>${mine?' <span class="meta">(내 폰 설정)</span>':' <span class="meta">(기본값)</span>'}
+      <div class="meta">${esc(o.address||"")}${ok?"":' · <b style="color:var(--red,#d33)">좌표 필요</b>'}</div></div><span class="act" style="padding:6px 10px;flex:none">변경</span>`;
+  }
+  function doSort(origin, label){
     reorderPending(p=>{
       const urg = p.filter(st=>st.urgent), rest = p.filter(st=>!st.urgent);
-      const sorted = sortByRoute(rest.map(st=>({cid:st.id, round:sRound(st), staff:"", st}))).map(x=>x.st);
+      const sorted = sortByRoute(rest.map(st=>({cid:st.id, round:sRound(st), staff:"", st})), origin).map(x=>x.st);
       p.splice(0, p.length, ...urg, ...sorted);
     });
-    toast("1차·2차 안에서 가까운 순서로 정렬했어요 (맨 위 거래처 기준)");
+    toast(`${label}에서 가까운 순서로 정렬했어요 (급한 곳은 맨 앞 유지)`);
+  }
+  function getGPS(){ return new Promise((res,rej)=>{
+    if(!navigator.geolocation){ rej(new Error("이 기기는 위치를 지원하지 않아요")); return; }
+    navigator.geolocation.getCurrentPosition(p=>res({lat:+p.coords.latitude.toFixed(7), lng:+p.coords.longitude.toFixed(7)}),
+      e=>rej(new Error(e.code===1?"위치 권한이 꺼져 있어요 (설정 > Safari > 위치)":"현재 위치를 못 가져왔어요")), {enableHighAccuracy:true, timeout:12000}); }); }
+  $("#cSort").onclick = ()=>{
+    const g = originXY();
+    if(g){ doSort(g, curOrigin().name||"출발지"); return; }
+    openSheet(`<h2>출발지 좌표가 아직 없어요</h2><p class="hint">${esc(curOrigin().name||"출발지")} 좌표가 있어야 출발지 기준으로 정렬돼요.</p>
+      <button class="btn p" id="sGps">📍 현재 위치 기준으로 정렬</button>
+      <button class="btn g" id="sSet">🏁 출발지 설정하기</button>
+      <button class="btn g" id="sTop">맨 위 거래처 기준으로 정렬</button>`);
+    $("#sGps").onclick = async ()=>{ try{ const g = await getGPS(); closeSheet(); doSort(g,"현재 위치"); }catch(e){ toast(e.message); } };
+    $("#sSet").onclick = originSheet;
+    $("#sTop").onclick = ()=>{ closeSheet(); doSort(null,"맨 위 거래처"); };
   };
+  $("#cOrigin").onclick = originSheet;
+  function originSheet(){
+    const o = curOrigin(), admin = isAdmin(), mine = !!settings.origin;
+    openSheet(`<h2>🏁 출발지 설정</h2>
+      <p class="hint">동선순 정렬은 출발지에서 가장 가까운 곳부터 순서를 잡아요. 1차·2차 모두 출발지 기준이에요.</p>
+      <label class="f">이름</label><input class="in" id="oName" value="${esc(o.name||"")}">
+      <label class="f">주소</label><input class="in" id="oAddr" value="${esc(o.address||"")}">
+      <label class="f">좌표 (위도, 경도)</label><input class="in" id="oXY" placeholder="예: 37.5412, 127.2054" value="${o.lat&&o.lng?esc(o.lat+", "+o.lng):""}">
+      <button class="act" id="oGps" style="margin-top:8px;width:100%">📍 지금 있는 위치로 좌표 채우기 (회사에서 누르면 정확해요)</button>
+      <div class="hint" id="oMsg" style="margin-top:6px"></div>
+      ${admin?`<button class="btn p" id="oDepot">💾 회사 기본 출발지로 저장 (모든 직원)</button>`:""}
+      <button class="btn ${admin?"g":"p"}" id="oMine">📱 내 폰에서만 이 출발지 쓰기</button>
+      ${mine?`<button class="btn g" id="oReset">↺ 기본 출발지(${esc(depot.name||"회사")})로 되돌리기</button>`:""}
+      <button class="btn g" id="oClose">닫기</button>`);
+    const read = ()=>{ const g = parseCoord($("#oXY").value,"");
+      return {name:$("#oName").value.trim()||"출발지", address:$("#oAddr").value.trim(), lat:g?g.lat:"", lng:g?g.lng:""}; };
+    $("#oGps").onclick = async ()=>{ $("#oMsg").textContent="위치 확인 중…"; try{ const g = await getGPS(); $("#oXY").value = g.lat+", "+g.lng; $("#oMsg").textContent="✅ 현재 위치를 넣었어요. 아래에서 저장하세요."; }catch(e){ $("#oMsg").textContent = "⚠️ "+e.message; } };
+    $("#oMine").onclick = ()=>{ const v = read(); if($("#oXY").value.trim() && !v.lat){ toast("좌표 형식이 맞지 않아요"); return; }
+      settings.origin = v; saveSettings(); closeSheet(); renderOrigin(); toast("내 폰 출발지를 바꿨어요"); };
+    if($("#oReset")) $("#oReset").onclick = ()=>{ settings.origin = null; saveSettings(); closeSheet(); renderOrigin(); toast("기본 출발지로 되돌렸어요"); };
+    if($("#oDepot")) $("#oDepot").onclick = async ()=>{ const v = read(); if($("#oXY").value.trim() && !v.lat){ toast("좌표 형식이 맞지 않아요"); return; }
+      try{ await publish(d=>{ d.depot = v; }, "기본 출발지 수정"); depot = v; lsSet("clientParkApp.depot.v1", depot); settings.origin = null; saveSettings();
+        closeSheet(); renderOrigin(); toast("회사 기본 출발지를 저장했어요 · 직원 앱엔 몇 분 뒤 반영"); }catch(e){ toast("저장 실패: "+(e.message||e)); } };
+    $("#oClose").onclick = closeSheet;
+  }
   $("#cHist").onclick = histSheet;
   $("#btnWho").onclick = personSheet;
   $("#cpToggle").onclick = ()=>{ courseOpen = !courseOpen; renderCourse(); };
@@ -1900,7 +1954,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.12";
+  const APP_VER = "2026-11-23.13";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

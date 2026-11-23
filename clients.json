@@ -234,5 +234,11 @@
       ],
       "publicParkingNote": ""
     }
-  ]
+  ],
+  "depot": {
+    "name": "유안메디",
+    "address": "경기 하남시 덕풍로65번길 22 3층",
+    "lat": "",
+    "lng": ""
+  }
 }

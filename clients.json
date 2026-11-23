@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23 09:45",
+ "updated": "2026-11-23 09:55",
  "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
  "clients": [
   {
@@ -15,7 +15,9 @@
    "freeTime": "",
    "enforce": [],
    "parkingSpot": "",
-   "parkingNote": "주차공간 협소 · 납품은 1층 경비실"
+   "parkingNote": "주차공간 협소 · 납품은 1층 경비실",
+   "lat": 37.5702227,
+   "lng": 127.0310337
   },
   {
    "id": "w-anl-pharm",
@@ -30,7 +32,9 @@
    "freeTime": "",
    "enforce": [],
    "parkingSpot": "갈매중심타워 주차장",
-   "parkingNote": "주차장 여유"
+   "parkingNote": "주차장 여유",
+   "lat": 37.6317091,
+   "lng": 127.1151453
   },
   {
    "id": "h-sangbong-firstbone-os",
@@ -45,7 +49,9 @@
    "freeTime": "",
    "enforce": [],
    "parkingSpot": "건물 주차장",
-   "parkingNote": "주차장 여유"
+   "parkingNote": "주차장 여유",
+   "lat": 37.5966483,
+   "lng": 127.0881738
   }
  ]
 }

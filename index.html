@@ -72,7 +72,7 @@
   .fab button{border:0;border-radius:999px;padding:12px 17px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap}
   .fab .up{background:var(--brand);color:#fff} .fab .add{background:var(--card);color:var(--ink)}
   nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
-  nav.bottom .in{max-width:640px;width:100%;display:grid;grid-template-columns:1fr 1fr 1fr}
+  nav.bottom .in{max-width:640px;width:100%;display:grid;grid-template-columns:1fr 1fr}
   nav.bottom button{border:0;background:transparent;padding:10px 0 12px;font-size:12.5px;color:var(--sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
   nav.bottom button b{font-size:20px;line-height:1}
   nav.bottom button.on{color:var(--ink);font-weight:700}
@@ -201,9 +201,10 @@
         <div><b id="stDone">0</b><span>완료</span></div>
       </div>
       <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
-      <div class="c-tools" id="cTools">
+      <div class="c-tools" id="cTools" style="grid-template-columns:1fr 1fr">
         <button class="act primary" id="cAdd">＋ 거래처 추가</button>
-        <button class="act" id="cSort">📍 지역순 정렬</button>
+        <button class="act" id="cHist">📅 지난 코스</button>
+        <button class="act" id="cSort">📍 동선순 정렬</button>
         <button class="act" id="cReset">↺ 새 코스</button>
       </div>
     </div>
@@ -219,7 +220,7 @@
 
 <nav class="bottom"><div class="in">
   <button id="navClients" class="on"><b>🏥</b>거래처</button>
-  <button id="navDispatch"><b>📋</b>배차</button>
+  <button id="navDispatch" style="display:none"><b>📋</b>배차</button>
   <button id="navCourse"><b>🚚</b><span>오늘 코스<span id="navBadge"></span></span></button>
 </div></nav>
 
@@ -480,6 +481,7 @@
   function saveCourse(){
     renderCourse(); if(view==="clients") render(); updateBadge();
     const ref = courseRef();
+    saveCourseHistory();
     if(!ref){ lsSet(LSC, course); return; }
     if(courseDirty) return; courseDirty = true;
     courseChain = courseChain.then(()=>new Promise(r=>setTimeout(r,250))).then(async ()=>{
@@ -1243,7 +1245,9 @@
   const roundOf = x => String(x && x.round || "1");
   let dpDraft = null;                                            // 관리자 편집 중인 사본
   let dpGroup = "staff";
+  const DISPATCH_ON = false;   // 공용 배차표 사용 안 함 (각자 오늘 코스에서 직접 짬). Firebase 연결 시 다시 켤 수 있음
   async function syncDispatch(firstRun){
+    if(!DISPATCH_ON) return;
     let data = null;
     if(isAdmin()){ try{ data = (await ghGet(DP_PATH)).data; }catch(e){ data = null; } }
     if(!data){ try{ const r = await fetch(DP_PATH+"?t="+Date.now(), {cache:"no-store"}); if(r.ok) data = await r.json(); }catch(e){} }
@@ -1258,6 +1262,7 @@
   // 오늘 배차표와 내 코스를 맞추기: 새로 배정된 곳은 넣고, 배차에서 빠진(다른 직원에게 넘어간) 곳은 뺌.
   // 배차로 들어온 곳(fromDp)만 건드리고, 내가 직접 넣은 곳과 완료한 곳은 그대로 둠.
   function importMyDispatch(force){
+    if(!DISPATCH_ON) return 0;
     if(!settings.me || dispatch.date!==today()) return 0;
     const myList = dispatch.items.filter(x=>x.staff===settings.me).map(x=>x.cid+":"+roundOf(x)).join(",");
     const key = dispatch.date+"|"+myList;      // 내 몫이 실제로 바뀌었을 때만 다시 맞춤
@@ -1440,16 +1445,53 @@
     else { addStops([id]); toast("코스에 추가했어요 (맨 뒤)"); return; }
     saveCourse();
   }
-  function addStops(ids){
+  const sRound = st => String(st && st.round || "1");
+  function orderPending(p){
+    const rank = st => st.urgent ? 0 : (sRound(st)==="1" ? 1 : 2);
+    return p.map((x,i)=>({x,i})).sort((a,b)=>rank(a.x)-rank(b.x) || a.i-b.i).map(o=>o.x);
+  }
+  function addStops(ids, round){
     ensureToday();
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
-    ids.forEach(id=>{ if(!course.stops.some(s=>s.id===id)) pending.push({id, urgent:false, done:false}); });
-    course.stops = pending.concat(done);
+    ids.forEach(id=>{ if(!course.stops.some(s=>s.id===id)) pending.push({id, urgent:false, done:false, round: round||"1"}); });
+    course.stops = orderPending(pending).concat(done);
     saveCourse();
   }
   function reorderPending(fn){
-    const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
-    fn(pending); course.stops = pending.concat(done); saveCourse();
+    let pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
+    fn(pending); course.stops = orderPending(pending).concat(done); saveCourse();
+  }
+  // 지난 코스 기록 (이 폰에 최근 30일)
+  const LSH = "clientParkApp.courseHistory.v1";
+  function saveCourseHistory(){
+    if(!course.date || !course.stops.length) return;
+    const h = lsGet(LSH, {});
+    h[course.date] = course.stops.map(st=>({id:st.id, round:sRound(st)}));
+    Object.keys(h).sort().reverse().slice(30).forEach(k=>delete h[k]);
+    lsSet(LSH, h);
+  }
+  function histSheet(){
+    const h = lsGet(LSH, {});
+    const dates = Object.keys(h).filter(d=>d!==today() && Array.isArray(h[d]) && h[d].length).sort().reverse();
+    const wd = d => DAYS[new Date(d+"T00:00:00").getDay()];
+    openSheet(`<h2>📅 지난 코스 불러오기</h2>
+      <p class="hint">고른 날 다녀온 곳을 1차/2차 그대로 오늘 코스에 넣어요. 이미 있는 곳은 건너뛰어요.</p>
+      ${dates.length ? dates.map(d=>{ const its=h[d].filter(x=>cById(x.id)); const r1=its.filter(x=>x.round!=="2").length, r2=its.length-r1;
+        return `<div class="pick" style="cursor:default"><div style="flex:1;min-width:0"><b>${d.slice(5).replace("-","/")} (${wd(d)})</b>${wd(d)===wd(today())?' <span class="tag cat">같은 요일</span>':""}
+          <div class="meta">${its.length}곳 · 1차 ${r1} · 2차 ${r2}<br>${esc(its.slice(0,4).map(x=>shortName(cById(x.id))).join(", "))}${its.length>4?" 외":""}</div></div>
+          <button class="act primary" style="flex:none;padding:8px 12px" data-load="${d}">불러오기</button></div>`; }).join("")
+        : `<div class="empty" style="padding:20px">아직 지난 코스 기록이 없어요.<br><span class="hint">오늘부터 다닌 코스가 날짜별로 쌓여요 (최근 30일).</span></div>`}
+      <button class="btn g" id="hsClose">닫기</button>`);
+    $("#hsClose").onclick = closeSheet;
+    $("#sheetBody").querySelectorAll("[data-load]").forEach(b=>b.onclick=()=>{
+      ensureToday();
+      const its = h[b.dataset.load].filter(x=>cById(x.id) && !course.stops.some(st=>st.id===x.id && !st.done));
+      course.stops = course.stops.filter(st=>!(st.done && its.some(x=>x.id===st.id)));
+      const pending = course.stops.filter(st=>!st.done), done = course.stops.filter(st=>st.done);
+      its.forEach(x=>pending.push({id:x.id, urgent:false, done:false, round:x.round||"1"}));
+      course.stops = orderPending(pending).concat(done); saveCourse();
+      closeSheet(); toast(its.length?`${its.length}곳을 불러왔어요`:"새로 넣을 곳이 없어요");
+    });
   }
   function cById(id){ return clients.find(c=>c.id===id); }
   function updateBadge(){
@@ -1470,12 +1512,12 @@
       ${isNext?`<div class="next-label">▶ 다음 목적지</div>`:""}
       <div class="stop"><div class="num ${s.urgent?"urgent":""}">${s.urgent?"!":idx+1}</div>
         <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer">
-          <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}${(()=>{ const d = dispatch.date===today() && dispatch.items.find(x=>x.cid===c.id && (!settings.me || x.staff===settings.me)); return d?` <span class="tag cat">${roundOf(d)}차</span>`:""; })()}</div>
+          <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}</div>
           <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div>
         </div>
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
       </div>
-      ${tagsHtml(c, (()=>{ const d = dispatch.date===today() && dispatch.items.find(x=>x.cid===c.id && (!settings.me || x.staff===settings.me)); return d?roundOf(d):""; })())}
+      ${tagsHtml(c, sRound(s))}
       ${info?`<div class="note">${esc(info)}</div>`:""}
       ${isNext?`<a class="btn p navgo" href="${esc(navHref(c))}"${navAttr}>${NAV_LABEL}</a>
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
@@ -1483,7 +1525,8 @@
           <a class="act" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
           ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
         </div>`:""}
-      <div class="ctl" ${isNext?'style="grid-template-columns:repeat(4,1fr)"':""}>
+      <div class="ctl" style="grid-template-columns:${isNext?"repeat(5,1fr)":"repeat(6,1fr)"}">
+        <button data-rnd="${esc(s.id)}" style="background:var(--blue-soft);color:var(--blue);border-color:transparent;font-weight:700">${sRound(s)}차 ⇄</button>
         <button data-up="${esc(s.id)}" aria-label="위로">▲</button>
         <button data-down="${esc(s.id)}" aria-label="아래로">▼</button>
         <button class="urg ${s.urgent?"on":""}" data-urg="${esc(s.id)}">🚨 긴급</button>
@@ -1502,6 +1545,7 @@
   }
   function renderCourseWho(){
     const el = $("#courseWho");
+    if(!DISPATCH_ON){ el.style.display="none"; courseWho="me"; return; }
     const names = staffList.filter(n=>n!==settings.me);
     if(!names.length){ el.style.display="none"; courseWho="me"; return; }
     if(courseWho!=="me" && !names.includes(courseWho)) courseWho="me";
@@ -1548,19 +1592,28 @@
       return;
     }
     const after = pending[1] ? cById(pending[1].id) : null;
-    let html = pending.map((s,i)=>stopHtml(s,i,i===0, i===0?after:null)).join("");
+    const warnN = pending.filter(st=>closedWarn(cById(st.id), sRound(st))).length;
+    let html = warnN ? `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700">⛔ 휴진 시간과 겹치는 곳이 ${warnN}곳 있어요 · 빨간 표시 확인 (1차=오전, 2차=오후)</div>` : "";
+    let lastHead = "";
+    pending.forEach((st,i)=>{
+      const head = st.urgent ? "🚨 긴급" : sRound(st)+"차";
+      if(head!==lastHead){ html += `<div class="sub-t">${head==="🚨 긴급"?head:`<span class="tag cat">${head}</span>`} · ${pending.filter(x=>(x.urgent?"🚨 긴급":sRound(x)+"차")===head).length}곳</div>`; lastHead = head; }
+      html += stopHtml(st, i, i===0, i===0?after:null);
+    });
     if(!pending.length) html += `<div class="empty" style="padding:24px">🎉 오늘 코스를 모두 완료했어요!</div>`;
     if(done.length) html += `<div class="sub-t">완료 ${done.length}곳</div>` + done.map(s=>stopHtml(s)).join("");
     $("#courseList").innerHTML = html;
   }
   $("#courseList").addEventListener("click", e=>{
-    const b = e.target.closest("[data-up],[data-down],[data-urg],[data-x],[data-done],[data-undo],[data-open]");
+    const b = e.target.closest("[data-rnd],[data-up],[data-down],[data-urg],[data-x],[data-done],[data-undo],[data-open]");
     if(!b) return;
     const d = b.dataset;
     if(d.open){ detail(d.open); return; }
     if(d.up||d.down){
       const id=d.up||d.down;
       reorderPending(p=>{ const i=p.findIndex(s=>s.id===id); const j=d.up?i-1:i+1; if(i<0||j<0||j>=p.length) return; [p[i],p[j]]=[p[j],p[i]]; });
+    } else if(d.rnd){
+      reorderPending(p=>{ const st = p.find(x=>x.id===d.rnd); if(st){ st.round = sRound(st)==="1" ? "2" : "1"; toast(`${sRound(st)}차로 옮겼어요`); } });
     } else if(d.urg){
       reorderPending(p=>{
         const i=p.findIndex(s=>s.id===d.urg); if(i<0) return;
@@ -1590,14 +1643,13 @@
   }
   $("#cSort").onclick = ()=>{
     reorderPending(p=>{
-      const urg = p.filter(s=>s.urgent), rest = p.filter(s=>!s.urgent);
-      const firstArea = {}; rest.forEach((s,i)=>{ const a=area((cById(s.id)||{}).address); if(!(a in firstArea)) firstArea[a]=i; });
-      rest.sort((a,b)=>{ const A=cById(a.id)||{}, B=cById(b.id)||{}; const aa=area(A.address), bb=area(B.address);
-        return (firstArea[aa]-firstArea[bb]) || String(A.address).localeCompare(String(B.address),"ko"); });
-      p.splice(0,p.length,...urg,...rest);
+      const urg = p.filter(st=>st.urgent), rest = p.filter(st=>!st.urgent);
+      const sorted = sortByRoute(rest.map(st=>({cid:st.id, round:sRound(st), staff:"", st}))).map(x=>x.st);
+      p.splice(0, p.length, ...urg, ...sorted);
     });
-    toast("긴급 먼저, 그다음 같은 지역끼리 묶었어요");
+    toast("1차·2차 안에서 가까운 순서로 정렬했어요 (맨 위 거래처 기준)");
   };
+  $("#cHist").onclick = histSheet;
   $("#cReset").onclick = ()=>{
     openSheet(`<h2>새 코스로 시작할까요?</h2><p class="hint">지금 코스 목록(완료 기록 포함)이 비워져요. 거래처 정보는 그대로예요.</p>
       <button class="btn p" id="rYes">새 코스 시작</button><button class="btn g" id="rNo">취소</button>`);
@@ -1640,31 +1692,16 @@
     $("#sheetBody").querySelectorAll("[data-fix]").forEach(el=>el.onclick=()=>detail(el.dataset.fix));
   }
   function pickSheet(){
-    const admin = isAdmin();
-    let who = "", round = "1";
+    let round = "1";
     multiPicker({
       title: "코스에 거래처 추가",
-      topHtml: admin && staffList.length ? `<label class="f">누구 코스에 넣을까요?</label>${chipPick("pkWho", [["","내 코스"]].concat(staffList.filter(n=>n!==settings.me).map(n=>[n,n+" (배차로 전송)"])), who)}
-        <div id="pkRoundWrap" style="display:none"><label class="f">배차</label>${chipPick("pkRound", ROUNDS, round)}</div>` : "",
-      exclude: ()=> who ? new Set((dispatch.date===today()?dispatch.items:[]).filter(x=>x.staff===who).map(x=>x.cid)) : new Set(course.stops.filter(s=>!s.done).map(s=>s.id)),
-      addText: n => who ? `${n}곳 → ${who} ${round}차 배차로 전송` : `${n}곳 내 코스에 추가`,
-      onReady: draw => {
-        bindChipPick("pkWho", k=>{ who=k; const w=$("#pkRoundWrap"); if(w) w.style.display = who?"":"none"; draw(); });
-        bindChipPick("pkRound", k=>{ round=k; draw(); });
-      },
-      onAdd: async ids => {
-        if(!who){ addStops(ids); closeSheet(); toast(`${ids.length}곳을 코스에 추가했어요`); return; }
-        const btn = $("#mpAdd"); btn.disabled = true; btn.textContent = "전송 중…";
-        try{
-          const saved = await publishFile(DP_PATH, d=>{
-            if(d.date!==today()){ d.date = today(); d.items = []; }
-            if(!Array.isArray(d.items)) d.items = [];
-            ids.forEach(id=>{ if(!d.items.some(x=>x.cid===id && x.staff===who)) d.items.push({cid:id, staff:who, round}); });
-          }, `${today()} 배차 (${who})`, {date:"", items:[]});
-          dispatch = {date:saved.date, updated:saved.updated, items:saved.items}; lsSet(LSD, dispatch);
-          closeSheet(); toast(`${who} ${round}차 배차로 ${ids.length}곳을 보냈어요`);
-          if(view==="dispatch") renderDispatch();
-        }catch(e){ btn.disabled=false; btn.textContent="다시 시도"; }
+      topHtml: `<label class="f">배차</label>${chipPick("pkRound", ROUNDS, round)}`,
+      exclude: ()=> new Set(course.stops.filter(st=>!st.done).map(st=>st.id)),
+      addText: n => `${n}곳 → ${round}차로 내 코스에 추가`,
+      onReady: draw => { bindChipPick("pkRound", k=>{ round=k; draw(); }); },
+      onAdd: ids => {
+        course.stops = course.stops.filter(st=>!(st.done && ids.includes(st.id)));
+        addStops(ids, round); closeSheet(); toast(`${ids.length}곳을 ${round}차로 추가했어요`);
       }
     });
   }
@@ -1697,7 +1734,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.6";
+  const APP_VER = "2026-11-23.7";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

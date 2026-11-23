@@ -377,6 +377,13 @@
     course = lsGet(LSC, {date:today(), stops:[]});
     const saved = lsGet(LS, null);
     clients = saved || [];
+    // 테스트용 샘플 거래처 정리 (id: sample01~ / 이름 "샘플)")
+    const isSample = c => /^sample\d+$/.test(c.id) || /^샘플\)/.test(String(c.name||""));
+    if(clients.some(isSample)){
+      const gone = new Set(clients.filter(isSample).map(c=>c.id));
+      clients = clients.filter(c=>!gone.has(c.id)); lsSet(LS, clients);
+      course.stops = course.stops.filter(s=>!gone.has(s.id)); lsSet(LSC, course);
+    }
     setSync("local");
     render(); renderCourse(); updateBadge();
     syncShared(saved === null);

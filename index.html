@@ -391,7 +391,7 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["name","address","addressDetail","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
@@ -471,6 +471,23 @@
     (Array.isArray(c.enforce)?c.enforce:[]).forEach(e=>t.push(`<span class="tag">${e==="단속카메라"?"📷 ":""}${esc(e)}</span>`));
     return t.length ? `<div class="tags">${t.join("")}</div>` : "";
   }
+  function pubList(c){ return Array.isArray(c.publicParking) ? c.publicParking.filter(p=>p && p.name) : []; }
+  function pubSummary(c){
+    const l = pubList(c);
+    if(!l.length && !c.publicParkingNote) return "";
+    return `<div class="note" data-open="${esc(c.id)}" style="background:var(--blue-soft)">🅿️ 공영: ${l.length?esc(l.map(p=>p.name).join(", ")):"근처 공영주차장 없음 (상세 참고)"}</div>`;
+  }
+  function pubSection(c){
+    const l = pubList(c);
+    if(!l.length && !c.publicParkingNote) return "";
+    return `<div class="sec"><div class="sec-t">🅿️ 주변 공영주차장</div>
+      ${l.map(p=>{ const q = (p.address||"")+" "+p.name;
+        const app = "nmap://search?query="+enc(q)+"&appname="+APPN;
+        return `<div class="note" style="margin-top:6px"><b>${esc(p.name)}</b><br><span class="meta">${esc(p.address||"")}</span>${p.note?`<br>${esc(p.note)}`:""}
+          <div class="grid2" style="margin-top:8px"><a class="act primary" href="${esc(app)}">🧭 네이버 앱</a><a class="act" href="${esc(N(q))}" target="_blank" rel="noopener">🌐 웹 지도</a></div></div>`; }).join("")}
+      ${c.publicParkingNote?`<div class="hint" style="margin-top:6px">${esc(c.publicParkingNote)}</div>`:""}
+    </div>`;
+  }
   function inCourse(id){ return course.stops.some(s=>s.id===id && !s.done); }
   function render(){
     renderChips();
@@ -495,6 +512,7 @@
         <div class="addr" data-open="${esc(c.id)}">${esc(c.address)}${c.addressDetail?` <span style="color:var(--sub)">${esc(c.addressDetail)}</span>`:""}</div>
         ${tagsHtml(c)}
         ${note?`<div class="note" data-open="${esc(c.id)}">${esc(note)}</div>`:""}
+        ${pubSummary(c)}
         <div class="acts">
           ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
           <a class="act" href="${esc(L.place(c))}" target="_blank" rel="noopener">📍 위치</a>
@@ -531,6 +549,7 @@
         <div class="row"><span>담당자</span><span>${esc(c.contact||"-")}</span></div>
       </div>
       <button class="btn ${ic?"g":"b"}" id="dCourse">${ic?"✓ 오늘 코스에 있음 (빼기)":"🚚 오늘 코스에 추가"}</button>
+      ${pubSection(c)}
       <div class="sec"><div class="sec-t">네이버지도</div>
         <div class="grid2">
           <a class="act primary" href="${esc(L.place(c))}" target="_blank" rel="noopener">주소로 위치·길찾기</a>

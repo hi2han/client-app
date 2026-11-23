@@ -184,7 +184,7 @@
         <div><b id="stUrg">0</b><span>긴급</span></div>
         <div><b id="stDone">0</b><span>완료</span></div>
       </div>
-      <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보내기</button>
+      <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
       <div class="c-tools">
         <button class="act primary" id="cAdd">＋ 거래처 추가</button>
         <button class="act" id="cSort">📍 지역순 정렬</button>
@@ -328,6 +328,20 @@
     }
   };
   const APPN = enc(location.hostname||"client-route");
+  // PC(데스크톱)에서는 네이버지도 앱 대신 웹 지도로 연결
+  const UA = navigator.userAgent||"";
+  const IS_PC = !/Android|iPhone|iPad|iPod|Mobile/i.test(UA) && !(/Macintosh/.test(UA) && (navigator.maxTouchPoints||0)>1);
+  function merc(lat,lng){ const R=20037508.34; return {x:lng*R/180, y:Math.log(Math.tan((90+lat)*Math.PI/360))/(Math.PI/180)*R/180}; }
+  const W = {
+    // 좌표가 있으면 웹 길찾기(도착지 지정), 없으면 주소 검색
+    dir: c => { const g = hasXY(c); if(!g) return N(c.address);
+      const m = merc(g.lat,g.lng);
+      return "https://map.naver.com/p/directions/-/"+m.x.toFixed(6)+","+m.y.toFixed(6)+","+enc(shortName(c))+",,ADDRESS_POI/-/car"; },
+    pin: c => { const g = hasXY(c); return g ? "https://map.naver.com/?lng="+g.lng+"&lat="+g.lat+"&title="+enc(shortName(c)) : N(c.address); }
+  };
+  const NAV_LABEL = IS_PC ? "🧭 네이버지도(웹) 길찾기" : "🧭 네이버지도 앱으로 길찾기";
+  const navHref = c => IS_PC ? W.dir(c) : L.app(c);
+  const navAttr = IS_PC ? ' target="_blank" rel="noopener"' : "";
 
   // ---------- storage ----------
   const LS = "clientParkApp.v1", LSC = "clientParkApp.course.v1";
@@ -484,7 +498,7 @@
       ${l.map(p=>{ const q = (p.address||"")+" "+p.name;
         const app = "nmap://search?query="+enc(q)+"&appname="+APPN;
         return `<div class="note" style="margin-top:6px"><b>${esc(p.name)}</b><br><span class="meta">${esc(p.address||"")}</span>${p.note?`<br>${esc(p.note)}`:""}
-          <div class="grid2" style="margin-top:8px"><a class="act primary" href="${esc(app)}">🧭 네이버 앱</a><a class="act" href="${esc(N(q))}" target="_blank" rel="noopener">🌐 웹 지도</a></div></div>`; }).join("")}
+          <div class="grid2" style="margin-top:8px">${IS_PC?"":`<a class="act primary" href="${esc(app)}">🧭 네이버 앱</a>`}<a class="act ${IS_PC?"primary":""}" href="${esc(N(q))}" target="_blank" rel="noopener">🌐 ${IS_PC?"네이버지도(웹)":"웹 지도"}</a></div></div>`; }).join("")}
       ${c.publicParkingNote?`<div class="hint" style="margin-top:6px">${esc(c.publicParkingNote)}</div>`:""}
     </div>`;
   }
@@ -515,7 +529,7 @@
         ${pubSummary(c)}
         <div class="acts">
           ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
-          <a class="act" href="${esc(L.place(c))}" target="_blank" rel="noopener">📍 위치</a>
+          <a class="act" href="${esc(IS_PC?W.pin(c):L.place(c))}" target="_blank" rel="noopener">📍 위치</a>
           <a class="act primary" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
           <button class="act ${ic?"in-course":""}" data-course="${esc(c.id)}">${ic?"✓ 코스":"＋ 코스"}</button>
         </div>
@@ -873,7 +887,7 @@
       </div>
       ${tagsHtml(c)}
       ${info?`<div class="note">${esc(info)}</div>`:""}
-      ${isNext?`<a class="btn p navgo" href="${esc(L.app(c))}">🧭 네이버지도 앱으로 길찾기</a>
+      ${isNext?`<a class="btn p navgo" href="${esc(navHref(c))}"${navAttr}>${NAV_LABEL}</a>
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
           <a class="act" href="${esc(L.place(c))}" target="_blank" rel="noopener">🌐 웹 지도</a>
           <a class="act" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
@@ -887,7 +901,7 @@
         ${isNext?"":`<button class="ok" data-done="${esc(s.id)}">✅ 완료</button>`}
       </div>
       ${isNext ? (after
-        ? `<a class="btn donego" href="${esc(L.app(after))}" data-done="${esc(s.id)}" data-nav="1">✅ 완료 → 다음 「${esc(after.name.replace(/^샘플\)\s*/,""))}」 길찾기</a>`
+        ? `<a class="btn donego" href="${esc(navHref(after))}"${navAttr} data-done="${esc(s.id)}" data-nav="1">✅ 완료 → 다음 「${esc(after.name.replace(/^샘플\)\s*/,""))}」 길찾기</a>`
         : `<button class="btn donego" data-done="${esc(s.id)}">✅ 완료 (마지막 거래처)</button>`) : ""}
     </div>`;
   }
@@ -963,6 +977,17 @@
     const pend = course.stops.filter(s=>!s.done).map(s=>cById(s.id)).filter(Boolean);
     if(!pend.length){ toast("코스에 남은 거래처가 없어요"); return; }
     const ok = pend.filter(hasXY), miss = pend.filter(c=>!hasXY(c));
+    if(IS_PC){
+      openSheet(`<h2>네이버지도(웹)로 코스 보기</h2>
+        <p class="hint">PC 웹 지도는 여러 경유지를 한 번에 넣는 링크를 지원하지 않아서, 순서대로 한 곳씩 열어요. 휴대폰에서는 6곳씩 한 번에 보내져요.</p>
+        ${pend.map((c,i)=>`<div class="pick" style="cursor:default"><div class="num" style="flex:none">${i+1}</div>
+          <div style="flex:1;min-width:0"><b>${esc(shortName(c))}</b><div class="meta">${esc(c.address)}</div></div>
+          <a class="act primary" style="flex:none;padding:7px 10px" href="${esc(W.dir(c))}" target="_blank" rel="noopener">길찾기</a>
+          <a class="act" style="flex:none;padding:7px 10px" href="${esc(W.pin(c))}" target="_blank" rel="noopener">위치</a></div>`).join("")}
+        <button class="btn g" id="rClose">닫기</button>`);
+      $("#rClose").onclick = closeSheet;
+      return;
+    }
     const chunks = []; for(let i=0;i<ok.length;i+=6) chunks.push(ok.slice(i,i+6));
     const btns = chunks.map((ch,i)=>{
       const from = i>0 ? chunks[i-1][chunks[i-1].length-1] : null;

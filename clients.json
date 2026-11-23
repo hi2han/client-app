@@ -1,5 +1,51 @@
 {
- "updated": "2026-11-23 09:35",
+ "updated": "2026-11-23 09:45",
  "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
- "clients": []
+ "clients": [
+  {
+   "id": "w-asan-jeyak",
+   "name": "(주)아산제약",
+   "category": "wholesale",
+   "dept": "",
+   "address": "서울특별시 동대문구 청계천로 485",
+   "addressDetail": "1층 경비실",
+   "phone": "02-3290-5700",
+   "parking": "hard",
+   "building": "unk",
+   "freeTime": "",
+   "enforce": [],
+   "parkingSpot": "",
+   "parkingNote": "주차공간 협소 · 납품은 1층 경비실"
+  },
+  {
+   "id": "w-anl-pharm",
+   "name": "에이앤엘팜",
+   "category": "wholesale",
+   "dept": "",
+   "address": "경기도 구리시 산마루로 6",
+   "addressDetail": "갈매중심타워 2층",
+   "phone": "02-2138-1758",
+   "parking": "easy",
+   "building": "yes",
+   "freeTime": "",
+   "enforce": [],
+   "parkingSpot": "갈매중심타워 주차장",
+   "parkingNote": "주차장 여유"
+  },
+  {
+   "id": "h-sangbong-firstbone-os",
+   "name": "상봉퍼스트본정형외과",
+   "category": "hospital",
+   "dept": "정형외과",
+   "address": "서울특별시 중랑구 망우로 322",
+   "addressDetail": "3층",
+   "phone": "02-433-0683",
+   "parking": "easy",
+   "building": "yes",
+   "freeTime": "",
+   "enforce": [],
+   "parkingSpot": "건물 주차장",
+   "parkingNote": "주차장 여유"
+  }
+ ]
 }

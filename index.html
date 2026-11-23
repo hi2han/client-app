@@ -384,7 +384,7 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["name","address","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["name","address","addressDetail","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
@@ -485,7 +485,7 @@
           <div class="meta"><span class="tag cat" style="padding:1px 6px">${CATS[catOf(c)]}</span> ${esc([c.dept,c.contact].filter(Boolean).join(" · "))}</div></div>
           <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
         </div>
-        <div class="addr" data-open="${esc(c.id)}">${esc(c.address)}</div>
+        <div class="addr" data-open="${esc(c.id)}">${esc(c.address)}${c.addressDetail?` <span style="color:var(--sub)">${esc(c.addressDetail)}</span>`:""}</div>
         ${tagsHtml(c)}
         ${note?`<div class="note" data-open="${esc(c.id)}">${esc(note)}</div>`:""}
         <div class="acts">
@@ -519,7 +519,7 @@
       <h2>${esc(c.name)}</h2>
       <div class="meta">${esc([CATS[editing.category],c.dept,c.contact].filter(Boolean).join(" · "))}</div>
       <div class="sec">
-        <div class="row"><span>주소</span><span>${esc(c.address)}</span></div>
+        <div class="row"><span>주소</span><span>${esc(c.address)}${c.addressDetail?"<br>"+esc(c.addressDetail):""}</span></div>
         <div class="row"><span>연락처</span><span>${c.phone?`<a class="tel" href="${esc(telHref(c.phone))}">${esc(c.phone)}</a>`:"-"}</span></div>
         <div class="row"><span>담당자</span><span>${esc(c.contact||"-")}</span></div>
       </div>

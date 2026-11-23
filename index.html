@@ -1165,10 +1165,50 @@
   $("#btnMenu").onclick = menuSheet;
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") syncShared(false).then(()=>syncDispatch(false)); });
 
+  // ---------- 공통: 여러 거래처 고르기 (검색해도 체크 유지, 선택한 곳은 위에 고정) ----------
+  function chipPick(id, opts, cur){
+    return `<div class="tgl" id="${id}">${opts.map(([k,l])=>`<button data-k="${esc(k)}" class="${cur===k?"on":""}" style="${cur===k?"background:var(--blue-soft);color:var(--blue);border-color:var(--blue);font-weight:700":""}">${esc(l)}</button>`).join("")}</div>`;
+  }
+  function bindChipPick(id, onPick){
+    const el = $("#"+id); if(!el) return;
+    el.onclick = e=>{ const b=e.target.closest("button"); if(!b) return; onPick(b.dataset.k);
+      [...el.children].forEach(x=>{ const on = x===b; x.classList.toggle("on",on); x.style.cssText = on ? "background:var(--blue-soft);color:var(--blue);border-color:var(--blue);font-weight:700" : ""; }); };
+  }
+  function multiPicker({title, topHtml, exclude, addText, onAdd, onReady}){
+    const sel = [];   // 선택 순서 유지
+    openSheet(`<h2>${title}</h2>${topHtml||""}
+      <div class="search" style="margin-top:10px"><span>🔍</span><input id="mpq" type="search" placeholder="이름 일부·초성 검색 (체크한 곳은 그대로 유지돼요)" autocomplete="off"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="chip" id="mpAll">✓ 검색된 곳 전체 선택</button><button class="chip" id="mpNone">선택 모두 해제</button></div>
+      <div id="mpList" style="margin-top:6px"></div>
+      <div style="position:sticky;bottom:0;background:var(--card);padding:6px 0 0"><button class="btn p" id="mpAdd" disabled>추가</button></div>`);
+    const row = (c, q, on) => `<label class="pick"><input type="checkbox" data-id="${esc(c.id)}" ${on?"checked":""}>
+      <div style="min-width:0"><div style="font-weight:700">${hl(c.name,q)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(area(c.address))}${(c.assignees||[]).length?" · 👤 "+esc(c.assignees.join(", ")):""}</div></div></label>`;
+    const draw = ()=>{
+      const q = $("#mpq").value, ex = exclude();
+      const picked = sel.map(cById).filter(Boolean);
+      const rows = clients.filter(c=>!ex.has(c.id) && !sel.includes(c.id)).map(c=>({c,s:score(c,q)})).filter(x=>x.s)
+        .sort((a,b)=>b.s-a.s||String(a.c.name).localeCompare(String(b.c.name),"ko")).slice(0,100);
+      $("#mpList").innerHTML =
+        (picked.length?`<div class="sub-t" style="padding-left:0">✓ 선택한 곳 ${picked.length}</div>`+picked.map(c=>row(c,"",true)).join(""):"")+
+        `<div class="sub-t" style="padding-left:0">${q?`🔍 '${esc(q)}' 검색 결과 ${rows.length}`:`전체 거래처 ${rows.length}`}</div>`+
+        (rows.length ? rows.map(({c})=>row(c,q,false)).join("") : `<div class="empty" style="padding:16px">${q?"검색 결과가 없어요":"추가할 거래처가 없어요"}</div>`);
+      $("#mpAdd").disabled = !sel.length; $("#mpAdd").textContent = sel.length ? (addText ? addText(sel.length) : `${sel.length}곳 추가`) : "거래처를 체크하세요";
+    };
+    $("#mpq").oninput = draw;
+    $("#mpAll").onclick = ()=>{ $("#mpList").querySelectorAll("input[data-id]").forEach(i=>{ if(!sel.includes(i.dataset.id)) sel.push(i.dataset.id); }); draw(); };
+    $("#mpNone").onclick = ()=>{ sel.length = 0; draw(); };
+    $("#mpList").onchange = e=>{ const id=e.target.dataset.id; if(!id) return; const i=sel.indexOf(id); if(e.target.checked){ if(i<0) sel.push(id); } else if(i>=0) sel.splice(i,1); draw(); };
+    $("#mpAdd").onclick = ()=>onAdd(sel.slice());
+    if(onReady) onReady(draw);
+    draw();
+  }
+
   // ---------- 배차 (관리자가 '누가 어디로' 지정 → 직원 오늘 코스로 자동 전달) ----------
   const DP_PATH = "dispatch.json";
   const LSD = "clientParkApp.dispatch.v1";
-  let dispatch = lsGet(LSD, {date:"", updated:"", items:[]});   // items: [{cid, staff}]
+  let dispatch = lsGet(LSD, {date:"", updated:"", items:[]});   // items: [{cid, staff, round}]
+  const ROUNDS = [["1","1차"],["2","2차"]];
+  const roundOf = x => String(x && x.round || "1");
   let dpDraft = null;                                            // 관리자 편집 중인 사본
   let dpGroup = "staff";
   async function syncDispatch(firstRun){
@@ -1187,7 +1227,7 @@
     if(!settings.me || dispatch.date!==today()) return 0;
     const key = dispatch.date+"|"+dispatch.updated;
     if(!force && settings.dpImported===key) return 0;
-    const mine = dispatch.items.filter(x=>x.staff===settings.me && cById(x.cid)).map(x=>x.cid);
+    const mine = dispatch.items.filter(x=>x.staff===settings.me && cById(x.cid)).sort((a,b)=>roundOf(a).localeCompare(roundOf(b))).map(x=>x.cid);
     const fresh = mine.filter(id=>!course.stops.some(s=>s.id===id));
     if(course.date!==today() && fresh.length){ course = {date:today(), stops:course.stops.filter(s=>!s.done)}; }
     if(fresh.length) addStops(fresh);
@@ -1202,8 +1242,8 @@
     const items = dpItems();
     const isToday = dispatch.date===today();
     $("#dpDate").textContent = today().slice(5).replace("-","/") + (editing?" · 편집 중":"");
-    const counts = {}; items.forEach(x=>{ const k=staffName(x.staff); counts[k]=(counts[k]||0)+1; });
-    const summary = Object.keys(counts).length ? Object.entries(counts).map(([k,v])=>`<span class="tag ${k==="미배정"?"":"cat"}">${k==="미배정"?"":"👤 "}${esc(k)} ${v}곳</span>`).join(" ") : "";
+    const counts = {}; items.forEach(x=>{ const k=roundOf(x)+"차 · "+staffName(x.staff); counts[k]=(counts[k]||0)+1; });
+    const summary = Object.keys(counts).length ? Object.entries(counts).sort((a,b)=>a[0].localeCompare(b[0],"ko")).map(([k,v])=>`<span class="tag ${/미배정/.test(k)?"":"cat"}">${esc(k)} ${v}곳</span>`).join(" ") : "";
     let head = `<div class="note" style="margin-top:4px">${items.length?`오늘 배송지 <b>${items.length}곳</b><div class="tags" style="margin-top:6px">${summary}</div>`:(isToday||editing?"오늘 배차가 비어 있어요.":"아직 오늘 배차표가 없어요.")}
       ${!editing && dispatch.updated && isToday?`<div class="upd">배차 저장 ${esc(dispatch.updated)}</div>`:""}</div>`;
     if(admin && !editing){
@@ -1218,21 +1258,23 @@
                           : `<div class="hint" style="margin-top:8px">⋯ 메뉴에서 <b>내 이름</b>을 고르면 내 배송지가 오늘 코스로 자동으로 들어와요.</div>`;
     }
     $("#dpHead").innerHTML = head;
-    // 직원별로 묶어서 보여주기
+    // 1차/2차 → 직원별로 묶어서 보여주기
     const groups = {}; const order = [];
-    items.forEach((x,i)=>{ const k = staffName(x.staff); if(!groups[k]){ groups[k]=[]; order.push(k);} groups[k].push(Object.assign({i},x)); });
-    order.sort((a,b)=> (a==="미배정")-(b==="미배정") || (a===settings.me?-1:b===settings.me?1:0) || a.localeCompare(b,"ko"));
+    items.forEach((x,i)=>{ const k = roundOf(x)+"|"+staffName(x.staff); if(!groups[k]){ groups[k]=[]; order.push(k);} groups[k].push(Object.assign({i},x)); });
+    const sn = k => k.split("|")[1];
+    order.sort((a,b)=> a.split("|")[0].localeCompare(b.split("|")[0]) || (sn(a)==="미배정")-(sn(b)==="미배정") || (sn(a)===settings.me?-1:sn(b)===settings.me?1:0) || sn(a).localeCompare(sn(b),"ko"));
     const opt = cur => `<option value="">미배정</option>`+staffList.map(n=>`<option ${cur===n?"selected":""}>${esc(n)}</option>`).join("");
+    const ropt = cur => ROUNDS.map(([k,l])=>`<option value="${k}" ${cur===k?"selected":""}>${l}</option>`).join("");
     $("#dpList").innerHTML = !items.length ? (admin&&!editing?`<div class="empty">✏️ 오늘 배차 만들기를 눌러<br>배송지를 고르고 직원을 지정하세요.</div>`:"") :
-      order.map(k=>`<div class="sub-t">${k==="미배정"?"⚠️ 미배정":"👤 "+esc(k)}${k===settings.me?" (나)":""} · ${groups[k].length}곳</div>`+
-        groups[k].map((x,j)=>{ const c = cById(x.cid); if(!c) return "";
+      order.map(gk=>{ const [r,k] = gk.split("|"); return `<div class="sub-t"><span class="tag cat">${r}차</span> ${k==="미배정"?"⚠️ 미배정":"👤 "+esc(k)}${k===settings.me?" (나)":""} · ${groups[gk].length}곳</div>`+
+        groups[gk].map((x,j)=>{ const c = cById(x.cid); if(!c) return "";
           const pk = PARK[c.parking||"unk"];
           return `<div class="card" style="${k===settings.me?"border-color:var(--brand)":""}"><div class="stop"><div class="num">${j+1}</div>
             <div class="stop-body"><div class="name">${esc(c.name)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(area(c.address))} · 주차 ${pk.short}</div>
-            ${editing?`<div style="display:flex;gap:6px;margin-top:8px;align-items:center"><select class="in" style="padding:8px" data-dpstaff="${x.i}">${opt(x.staff)}</select>
+            ${editing?`<div style="display:flex;gap:6px;margin-top:8px;align-items:center"><select class="in" style="padding:8px;width:76px;flex:none" data-dpround="${x.i}">${ropt(roundOf(x))}</select><select class="in" style="padding:8px" data-dpstaff="${x.i}">${opt(x.staff)}</select>
               <button class="act" style="flex:none;padding:8px 10px" data-dpup="${x.i}">▲</button><button class="act" style="flex:none;padding:8px 10px" data-dpdown="${x.i}">▼</button>
               <button class="act" style="flex:none;padding:8px 10px;color:var(--hard)" data-dprm="${x.i}">✕</button></div>`:""}
-            </div></div></div>`; }).join("")).join("");
+            </div></div></div>`; }).join(""); }).join("");
     const b = id => $("#"+id);
     if(b("dpEdit")) b("dpEdit").onclick = ()=>{ dpDraft = {date:today(), items: (isToday?dispatch.items:[]).map(x=>Object.assign({},x))}; renderDispatch(); };
     if(b("dpCancel")) b("dpCancel").onclick = ()=>{ dpDraft = null; renderDispatch(); };
@@ -1242,7 +1284,7 @@
       const un = dpDraft.items.filter(x=>!x.staff).length;
       b("dpSave").disabled = true; b("dpSave").textContent = "저장 중…";
       try{
-        const saved = await publishFile(DP_PATH, d=>{ d.date = dpDraft.date; d.items = dpDraft.items.map(x=>({cid:x.cid, staff:x.staff||""})); }, `${dpDraft.date} 배차`, {date:"", items:[]});
+        const saved = await publishFile(DP_PATH, d=>{ d.date = dpDraft.date; d.items = dpDraft.items.map(x=>({cid:x.cid, staff:x.staff||"", round:roundOf(x)})); }, `${dpDraft.date} 배차`, {date:"", items:[]});
         dispatch = {date:saved.date, updated:saved.updated, items:saved.items}; lsSet(LSD, dispatch); dpDraft = null;
         renderDispatch(); importMyDispatch(true);
         toast(un?`저장했어요 · 미배정 ${un}곳이 있어요`:"배차를 저장했어요 · 직원 앱에는 몇 분 뒤 반영돼요");
@@ -1250,46 +1292,37 @@
     };
     if(b("dpImport")) b("dpImport").onclick = ()=>{ const n = importMyDispatch(true); if(!n) toast("새로 넣을 배송지가 없어요 (이미 코스에 있음)"); go("course"); };
   }
-  $("#dpList").addEventListener("change", e=>{ const s = e.target.closest("[data-dpstaff]"); if(s && dpDraft){ dpDraft.items[+s.dataset.dpstaff].staff = s.value; renderDispatch(); } });
+  $("#dpList").addEventListener("change", e=>{
+    if(!dpDraft) return;
+    const s = e.target.closest("[data-dpstaff]"); if(s){ dpDraft.items[+s.dataset.dpstaff].staff = s.value; renderDispatch(); }
+    const r = e.target.closest("[data-dpround]"); if(r){ dpDraft.items[+r.dataset.dpround].round = r.value; renderDispatch(); }
+  });
   $("#dpList").addEventListener("click", e=>{
     if(!dpDraft) return;
     const it = dpDraft.items, t = e.target.closest("[data-dprm],[data-dpup],[data-dpdown]"); if(!t) return;
     if(t.dataset.dprm){ it.splice(+t.dataset.dprm,1); }
     else {
-      const i = +(t.dataset.dpup||t.dataset.dpdown), k = it[i].staff||"";
-      const same = it.map((x,j)=>j).filter(j=>(it[j].staff||"")===k);
+      const i = +(t.dataset.dpup||t.dataset.dpdown), k = (it[i].staff||"")+"|"+roundOf(it[i]);
+      const same = it.map((x,j)=>j).filter(j=>(it[j].staff||"")+"|"+roundOf(it[j])===k);
       const pos = same.indexOf(i), to = t.dataset.dpup ? same[pos-1] : same[pos+1];
       if(to===undefined) return; [it[i], it[to]] = [it[to], it[i]];
     }
     renderDispatch();
   });
   function dpPick(){
-    const sel = new Set(); let who = "";
-    openSheet(`<h2>배송지 추가</h2>
-      <label class="f">이 배송지를 맡을 직원</label>
-      <select class="in" id="ppWho"><option value="">자동 (거래처 담당 직원 / 없으면 미배정)</option>${staffList.map(n=>`<option>${esc(n)}</option>`).join("")}</select>
-      <div class="search" style="margin-top:10px"><span>🔍</span><input id="ppq" type="search" placeholder="이름 일부·초성 검색" autocomplete="off"></div>
-      <div style="display:flex;gap:6px;margin-top:8px"><button class="chip" id="ppAll">✓ 보이는 곳 전체 선택</button><button class="chip" id="ppNone">선택 해제</button></div>
-      <div id="ppList" style="margin-top:6px"></div>
-      <button class="btn p" id="ppAdd" disabled>추가</button>`);
-    const draw = ()=>{
-      const q = $("#ppq").value; const have = new Set(dpDraft.items.map(x=>x.cid));
-      const rows = clients.filter(c=>!have.has(c.id)).map(c=>({c,s:score(c,q)})).filter(x=>x.s).sort((a,b)=>b.s-a.s||String(a.c.name).localeCompare(String(b.c.name),"ko"));
-      $("#ppList").innerHTML = rows.length ? rows.map(({c})=>`<label class="pick"><input type="checkbox" data-id="${esc(c.id)}" ${sel.has(c.id)?"checked":""}>
-        <div style="min-width:0"><div style="font-weight:700">${hl(c.name,q)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(area(c.address))}${(c.assignees||[]).length?" · 👤 "+esc(c.assignees.join(", ")):""}</div></div></label>`).join("")
-        : `<div class="empty" style="padding:24px">추가할 거래처가 없어요.</div>`;
-      $("#ppAdd").disabled = !sel.size; $("#ppAdd").textContent = sel.size?`${sel.size}곳 추가`:"추가";
-    };
-    $("#ppWho").onchange = e=>{ who = e.target.value; };
-    $("#ppq").oninput = draw;
-    $("#ppAll").onclick = ()=>{ $("#ppList").querySelectorAll("input[data-id]").forEach(i=>sel.add(i.dataset.id)); draw(); };
-    $("#ppNone").onclick = ()=>{ sel.clear(); draw(); };
-    $("#ppList").onchange = e=>{ const id=e.target.dataset.id; if(!id) return; e.target.checked?sel.add(id):sel.delete(id); $("#ppAdd").disabled=!sel.size; $("#ppAdd").textContent=sel.size?`${sel.size}곳 추가`:"추가"; };
-    $("#ppAdd").onclick = ()=>{
-      [...sel].forEach(id=>{ const c = cById(id); const a = c&&Array.isArray(c.assignees)?c.assignees:[]; dpDraft.items.push({cid:id, staff: who || a[0] || ""}); });
-      closeSheet(); renderDispatch(); toast(`${sel.size}곳을 추가했어요`);
-    };
-    draw();
+    let who = "", round = "1";
+    multiPicker({
+      title: "배송지 추가",
+      topHtml: `<label class="f">배차</label>${chipPick("ppRound", ROUNDS, round)}
+        <label class="f">배송 직원</label>${chipPick("ppWho", [["","자동 (담당 직원)"]].concat(staffList.map(n=>[n,n])), who)}`,
+      exclude: ()=>new Set(dpDraft.items.map(x=>x.cid)),
+      addText: n => `${n}곳 추가 · ${round}차 · ${who||"자동 배정"}`,
+      onReady: draw => { bindChipPick("ppRound", k=>{ round=k; draw(); }); bindChipPick("ppWho", k=>{ who=k; draw(); }); },
+      onAdd: ids => {
+        ids.forEach(id=>{ const c = cById(id); const a = c&&Array.isArray(c.assignees)?c.assignees:[]; dpDraft.items.push({cid:id, staff: who || a[0] || "", round}); });
+        closeSheet(); renderDispatch(); toast(`${ids.length}곳을 ${round}차로 추가했어요`);
+      }
+    });
   }
 
   // ---------- 코스 ----------
@@ -1332,7 +1365,7 @@
       ${isNext?`<div class="next-label">▶ 다음 목적지</div>`:""}
       <div class="stop"><div class="num ${s.urgent?"urgent":""}">${s.urgent?"!":idx+1}</div>
         <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer">
-          <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}</div>
+          <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}${(()=>{ const d = dispatch.date===today() && dispatch.items.find(x=>x.cid===c.id && (!settings.me || x.staff===settings.me)); return d?` <span class="tag cat">${roundOf(d)}차</span>`:""; })()}</div>
           <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div>
         </div>
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
@@ -1458,27 +1491,33 @@
     $("#sheetBody").querySelectorAll("[data-fix]").forEach(el=>el.onclick=()=>detail(el.dataset.fix));
   }
   function pickSheet(){
-    const sel = new Set();
-    openSheet(`<h2>코스에 거래처 추가</h2>
-      <div class="search" style="margin-top:8px"><span>🔍</span><input id="pq" type="search" placeholder="이름 일부·초성 검색" autocomplete="off"></div>
-      <div style="display:flex;gap:6px;margin-top:8px"><button class="chip" id="pAll">✓ 보이는 곳 전체 선택</button><button class="chip" id="pNone">선택 해제</button></div>
-      <div id="pList" style="margin-top:6px"></div>
-      <button class="btn p" id="pAdd" disabled>추가</button>`);
-    const draw = ()=>{
-      const q = $("#pq").value;
-      const rows = clients.filter(c=>!course.stops.some(s=>s.id===c.id && !s.done))
-        .map(c=>({c,s:score(c,q)})).filter(x=>x.s).sort((a,b)=>b.s-a.s||String(a.c.name).localeCompare(String(b.c.name),"ko")).slice(0,80);
-      $("#pList").innerHTML = rows.length ? rows.map(({c})=>`<label class="pick"><input type="checkbox" data-id="${esc(c.id)}" ${sel.has(c.id)?"checked":""}>
-        <div style="min-width:0"><div style="font-weight:700">${hl(c.name,q)}</div><div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}</div></div></label>`).join("")
-        : `<div class="empty" style="padding:24px">추가할 거래처가 없어요.</div>`;
-      $("#pAdd").disabled = !sel.size; $("#pAdd").textContent = sel.size ? `${sel.size}곳 코스에 추가` : "추가";
-    };
-    $("#pq").oninput = draw;
-    $("#pAll").onclick = ()=>{ $("#pList").querySelectorAll("input[data-id]").forEach(i=>sel.add(i.dataset.id)); draw(); };
-    $("#pNone").onclick = ()=>{ sel.clear(); draw(); };
-    $("#pList").onchange = e=>{ const id=e.target.dataset.id; if(!id) return; e.target.checked?sel.add(id):sel.delete(id); $("#pAdd").disabled=!sel.size; $("#pAdd").textContent = sel.size?`${sel.size}곳 코스에 추가`:"추가"; };
-    $("#pAdd").onclick = ()=>{ addStops([...sel]); closeSheet(); toast(`${sel.size}곳을 코스에 추가했어요`); };
-    draw();
+    const admin = isAdmin();
+    let who = "", round = "1";
+    multiPicker({
+      title: "코스에 거래처 추가",
+      topHtml: admin && staffList.length ? `<label class="f">누구 코스에 넣을까요?</label>${chipPick("pkWho", [["","내 코스"]].concat(staffList.filter(n=>n!==settings.me).map(n=>[n,n+" (배차로 전송)"])), who)}
+        <div id="pkRoundWrap" style="display:none"><label class="f">배차</label>${chipPick("pkRound", ROUNDS, round)}</div>` : "",
+      exclude: ()=> who ? new Set((dispatch.date===today()?dispatch.items:[]).filter(x=>x.staff===who).map(x=>x.cid)) : new Set(course.stops.filter(s=>!s.done).map(s=>s.id)),
+      addText: n => who ? `${n}곳 → ${who} ${round}차 배차로 전송` : `${n}곳 내 코스에 추가`,
+      onReady: draw => {
+        bindChipPick("pkWho", k=>{ who=k; const w=$("#pkRoundWrap"); if(w) w.style.display = who?"":"none"; draw(); });
+        bindChipPick("pkRound", k=>{ round=k; draw(); });
+      },
+      onAdd: async ids => {
+        if(!who){ addStops(ids); closeSheet(); toast(`${ids.length}곳을 코스에 추가했어요`); return; }
+        const btn = $("#mpAdd"); btn.disabled = true; btn.textContent = "전송 중…";
+        try{
+          const saved = await publishFile(DP_PATH, d=>{
+            if(d.date!==today()){ d.date = today(); d.items = []; }
+            if(!Array.isArray(d.items)) d.items = [];
+            ids.forEach(id=>{ if(!d.items.some(x=>x.cid===id && x.staff===who)) d.items.push({cid:id, staff:who, round}); });
+          }, `${today()} 배차 (${who})`, {date:"", items:[]});
+          dispatch = {date:saved.date, updated:saved.updated, items:saved.items}; lsSet(LSD, dispatch);
+          closeSheet(); toast(`${who} ${round}차 배차로 ${ids.length}곳을 보냈어요`);
+          if(view==="dispatch") renderDispatch();
+        }catch(e){ btn.disabled=false; btn.textContent="다시 시도"; }
+      }
+    });
   }
 
   // ---------- nav & events ----------
@@ -1509,7 +1548,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.3";
+  const APP_VER = "2026-11-23.4";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

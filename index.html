@@ -1531,8 +1531,48 @@
   const sRound = st => String(st && st.round || "1");
   function orderPending(p){
     const rank = st => st.urgent ? 0 : (sRound(st)==="1" ? 1 : 2);
-    return p.map((x,i)=>({x,i})).sort((a,b)=>rank(a.x)-rank(b.x) || a.i-b.i).map(o=>o.x);
+    const dueKey = st => st.urgent && st.due ? st.due : "99:99";   // 긴급끼리는 마감 빠른 순
+    return p.map((x,i)=>({x,i})).sort((a,b)=>rank(a.x)-rank(b.x) || (rank(a.x)===0 ? dueKey(a.x).localeCompare(dueKey(b.x)) : 0) || a.i-b.i).map(o=>o.x);
   }
+  // ---------- 마감 시간 ----------
+  const DUE_PRESET = [["", "없음"], ["12:00","오전 중 (12시)"], ["18:00","오후 중 (18시)"]];
+  function dueInfo(st){
+    if(!st || !st.due || st.done) return null;
+    const [h,m] = st.due.split(":").map(Number); if(isNaN(h)) return null;
+    const now = new Date(), d = new Date(); d.setHours(h, m||0, 0, 0);
+    const left = Math.round((d - now)/60000);
+    const lvl = left < 0 ? "over" : left <= 30 ? "hot" : left <= 90 ? "warm" : "ok";
+    const fmt = mins => mins>=60 ? `${Math.floor(mins/60)}시간${mins%60?" "+(mins%60)+"분":""}` : `${mins}분`;
+    const label = st.due==="12:00" && st.duePreset ? "오전 중" : st.due==="18:00" && st.duePreset ? "오후 중" : st.due+"까지";
+    return {left, lvl, text: left<0 ? `⏰ ${label} · ${fmt(-left)} 지남` : `⏰ ${label} · ${fmt(left)} 남음`};
+  }
+  function dueBadge(st){
+    const i = dueInfo(st); if(!i) return "";
+    const css = {over:"background:var(--hard);color:#fff", hot:"background:var(--hard-soft);color:var(--hard)", warm:"background:var(--mid-soft);color:var(--mid)", ok:"background:var(--easy-soft);color:var(--easy)"}[i.lvl];
+    return `<span class="tag" style="${css};font-weight:700">${esc(i.text)}</span>`;
+  }
+  function urgentSheet(id){
+    const st = course.stops.find(x=>x.id===id && !x.done); if(!st) return;
+    const c = cById(id) || {};
+    let urgent = !!st.urgent, due = st.due || "", preset = !!st.duePreset;
+    openSheet(`<h2>🚨 우선순위 · 마감 시간</h2>
+      <div class="meta" style="margin-bottom:6px">${esc(shortName(c))}</div>
+      <label class="f">우선순위</label>
+      ${chipPick("ugOn", [["0","보통"],["1","🚨 긴급 (맨 위로)"]], urgent?"1":"0")}
+      <label class="f">언제까지 가야 하나요?</label>
+      ${chipPick("ugDue", DUE_PRESET.concat([["custom","시간 직접"]]), preset||!due ? due : "custom")}
+      <input class="in" type="time" id="ugTime" style="margin-top:8px;${(!preset && due)?"":"display:none"}" value="${esc(due)}">
+      <p class="hint" style="margin-top:8px">긴급은 마감이 빠른 순서로 맨 위에 정렬돼요. 마감이 다가오면 카드 색이 바뀌어요 (90분 전 주황 · 30분 전 빨강).</p>
+      <button class="btn p" id="ugSave">저장</button>`);
+    bindChipPick("ugOn", k=>{ urgent = k==="1"; });
+    bindChipPick("ugDue", k=>{ const t=$("#ugTime"); if(k==="custom"){ t.style.display=""; preset=false; due=t.value; t.focus(); } else { t.style.display="none"; due=k; preset=!!k; } });
+    $("#ugTime").oninput = e=>{ due = e.target.value; preset=false; };
+    $("#ugSave").onclick = ()=>{
+      reorderPending(()=>{ st.urgent = urgent; if(due){ st.due = due; st.duePreset = preset; } else { delete st.due; delete st.duePreset; } });
+      closeSheet(); toast(urgent ? `긴급${due?" · "+(preset?(due==="12:00"?"오전 중":"오후 중"):due+"까지"):""}` : (due ? `마감 ${preset?(due==="12:00"?"오전 중":"오후 중"):due+"까지"}` : "보통으로 바꿨어요"));
+    };
+  }
+  setInterval(()=>{ if(document.visibilityState==="visible" && course.stops.some(st=>st.due && !st.done)) renderCourse(); }, 60000);
   function addStops(ids, round){
     ensureToday();
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
@@ -1597,6 +1637,7 @@
       <div class="stop"><div class="num ${s.urgent?"urgent":""}">${s.urgent?"!":idx+1}</div>
         <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer">
           <div class="name">${esc(c.name)} ${s.urgent?'<span class="tag">긴급</span>':""}</div>
+          ${dueBadge(s)?`<div class="tags" style="margin-top:4px">${dueBadge(s)}</div>`:""}
           <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div>
         </div>
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
@@ -1614,7 +1655,7 @@
         <button data-rnd="${esc(s.id)}" style="background:var(--blue-soft);color:var(--blue);border-color:transparent;font-weight:700">${sRound(s)}차 ⇄</button>
         <button data-up="${esc(s.id)}" aria-label="위로">▲</button>
         <button data-down="${esc(s.id)}" aria-label="아래로">▼</button>
-        <button class="urg ${s.urgent?"on":""}" data-urg="${esc(s.id)}">🚨 긴급</button>
+        <button class="urg ${s.urgent||s.due?"on":""}" data-urg="${esc(s.id)}">🚨 ${s.urgent?"긴급":s.due?"마감":"우선"}</button>
         <button data-x="${esc(s.id)}">✕ 빼기</button>
         ${isNext?"":`<button class="ok" data-done="${esc(s.id)}">✅ 완료</button>`}
       </div>
@@ -1684,6 +1725,9 @@
     const after = pending[1] ? cById(pending[1].id) : null;
     const warnN = pending.filter(st=>closedWarn(cById(st.id), sRound(st))).length;
     let html = warnN ? `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700">⛔ 휴진 시간과 겹치는 곳이 ${warnN}곳 있어요 · 빨간 표시 확인 (1차=오전, 2차=오후)</div>` : "";
+    const overN = pending.filter(st=>{ const i=dueInfo(st); return i && i.lvl==="over"; }).length;
+    const hotN = pending.filter(st=>{ const i=dueInfo(st); return i && i.lvl==="hot"; }).length;
+    if(overN||hotN) html += `<div class="note" style="background:var(--hard);color:#fff;font-weight:700">⏰ ${overN?`마감 지난 곳 ${overN}곳`:""}${overN&&hotN?" · ":""}${hotN?`30분 안에 마감 ${hotN}곳`:""}</div>`;
     let lastHead = "";
     if(!courseOpen){
       // 접힌 상태: 경고 + 다음 목적지 카드만
@@ -1714,12 +1758,7 @@
     } else if(d.rnd){
       reorderPending(p=>{ const st = p.find(x=>x.id===d.rnd); if(st){ st.round = sRound(st)==="1" ? "2" : "1"; toast(`${sRound(st)}차로 옮겼어요`); } });
     } else if(d.urg){
-      reorderPending(p=>{
-        const i=p.findIndex(s=>s.id===d.urg); if(i<0) return;
-        const s=p.splice(i,1)[0]; s.urgent=!s.urgent;
-        if(s.urgent){ p.unshift(s); toast("긴급 → 맨 앞으로 이동"); }
-        else { const k=p.findIndex(x=>!x.urgent); p.splice(k<0?p.length:k,0,s); }
-      });
+      urgentSheet(d.urg);
     } else if(d.x){
       course.stops = course.stops.filter(s=>s.id!==d.x); saveCourse();
     } else if(d.done){
@@ -1841,7 +1880,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.10";
+  const APP_VER = "2026-11-23.11";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

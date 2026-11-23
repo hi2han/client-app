@@ -162,6 +162,7 @@
         <span aria-hidden="true">🔍</span>
         <input id="q" type="search" placeholder="이름 일부·초성 검색 (예: 서울아산, ㅅㅇㅇㅅ)" autocomplete="off">
       </div>
+      <div class="chips" id="staffChips" style="display:none"></div>
       <div class="tabs" id="catTabs"></div>
       <div class="chips" id="parkChips"></div>
       <div class="chips" id="areaChips"></div>
@@ -196,8 +197,9 @@
 </div>
 
 <div class="fab" id="fab">
-  <button class="add" id="btnAdd">＋ 직접 추가</button>
-  <button class="up" id="btnUp">엑셀 올리기</button>
+  <button class="add" id="btnMemo">📝 메모장</button>
+  <button class="add" id="btnAdd" style="display:none">＋ 직접 추가</button>
+  <button class="up" id="btnUp" style="display:none">엑셀 올리기</button>
 </div>
 
 <nav class="bottom"><div class="in">
@@ -224,7 +226,8 @@
     {key:"address", label:"주소", req:true, hints:["주소","소재지","도로명","address"]},
     {key:"category", label:"구분(병원/도매상)", hints:["거래처구분","구분","분류","유형","업태","category"]},
     {key:"phone", label:"연락처", hints:["전화","연락처","대표번호","tel","phone"]},
-    {key:"contact", label:"담당자", hints:["담당자","담당","원장","contact"]},
+    {key:"assignees", label:"담당 직원", hints:["담당직원","배송담당","담당기사","영업담당","직원"]},
+    {key:"contact", label:"거래처 담당자", hints:["담당자","담당","원장","contact"]},
     {key:"dept", label:"진료과/품목", hints:["진료과","과목","전문과","품목","종목"]},
     {key:"parkingNote", label:"주차 메모", hints:["주차메모","주차 메모","비고","메모","주차"]},
     {key:"lat", label:"위도", hints:["위도","latitude","lat","=y","y좌표"]},
@@ -234,7 +237,7 @@
   let db = null, user = null, myId = null, mode = "loading";
   let clients = [];
   let course = {date:"", stops:[]};     // stops: [{id, urgent, done, doneAt}]
-  let fCat = "all", fPark = "all", fArea = "all", query = "";
+  let fCat = "all", fPark = "all", fArea = "all", fStaff = null, query = "";
   let editing = null, view = "clients";
   const $ = s => document.querySelector(s);
 
@@ -365,6 +368,76 @@
     if(course.stops.some(s=>s.id===id)){ course.stops = course.stops.filter(s=>s.id!==id); saveCourse(); }
   }
 
+  // ---------- 설정 · 관리자(GitHub) ----------
+  const GH = {owner:"hi2han", repo:"client-app", path:"clients.json", branch:"main"};
+  const LSET = "clientParkApp.settings.v1";
+  let settings = Object.assign({me:"", token:"", hidden:[], memos:[]}, lsGet(LSET, {}));
+  if(!Array.isArray(settings.hidden)) settings.hidden=[];
+  if(!Array.isArray(settings.memos)) settings.memos=[];
+  let staffList = lsGet("clientParkApp.staff.v1", []);
+  const isAdmin = () => !!settings.token;
+  function saveSettings(){ lsSet(LSET, settings); }
+  function isHidden(id){ return settings.hidden.includes(id); }
+  function b64enc(str){ return btoa(unescape(encodeURIComponent(str))); }
+  function b64dec(b){ return decodeURIComponent(escape(atob(String(b).replace(/\s/g,"")))); }
+  async function ghReq(method, url, body, token){
+    const r = await fetch("https://api.github.com"+url, {method, cache:"no-store",
+      headers:{"Authorization":"Bearer "+(token||settings.token), "Accept":"application/vnd.github+json"},
+      body: body ? JSON.stringify(body) : undefined});
+    if(!r.ok){ const e = new Error("GitHub "+r.status); e.status = r.status; throw e; }
+    return r.json();
+  }
+  const ghFileUrl = () => `/repos/${GH.owner}/${GH.repo}/contents/${GH.path}`;
+  async function ghGet(){
+    const j = await ghReq("GET", ghFileUrl()+"?ref="+GH.branch);
+    return {sha:j.sha, data:JSON.parse(b64dec(j.content))};
+  }
+  let publishing = Promise.resolve();
+  // 회사 목록(clients.json)을 최신으로 받아서 mutator로 고친 뒤 GitHub에 저장 → 모든 직원에게 반영
+  function publish(mutator, msg){
+    const p = publishing.then(async ()=>{
+      for(let attempt=0; attempt<3; attempt++){
+        const {sha, data} = await ghGet();
+        if(!Array.isArray(data.clients)) data.clients = [];
+        if(!Array.isArray(data.staff)) data.staff = [];
+        mutator(data);
+        data.updated = today()+" "+hm();
+        try{
+          await ghReq("PUT", ghFileUrl(), {message: msg+" (앱에서 수정)", content: b64enc(JSON.stringify(data, null, 1)), sha, branch: GH.branch});
+          applyShared(data, false, true);
+          return data;
+        }catch(e){ if(e.status===409 && attempt<2) continue; throw e; }
+      }
+    });
+    publishing = p.catch(()=>{});
+    return p.catch(e=>{
+      toast(e && (e.status===401||e.status===403) ? "관리자 키가 만료됐거나 권한이 없어요" : "회사 목록 반영 실패 · 인터넷 확인 후 다시 시도");
+      throw e;
+    });
+  }
+  function sharedPart(c){
+    const o = {id:c.id};
+    SHARED_FIELDS.forEach(k=>{ if(c[k]!==undefined) o[k]=c[k]; });
+    return o;
+  }
+  async function adminSave(c){
+    const part = sharedPart(c);
+    await publish(d=>{
+      const i = d.clients.findIndex(x=>x.id===c.id);
+      if(i>=0) d.clients[i] = Object.assign({}, d.clients[i], part); else d.clients.push(part);
+      (part.assignees||[]).forEach(n=>{ if(n && !d.staff.includes(n)) d.staff.push(n); });
+    }, (c.name||"거래처")+" 저장");
+    const local = clients.find(x=>x.id===c.id);
+    if(local){ ["myNote","contact"].forEach(k=>{ if(c[k]!==undefined) local[k]=c[k]; }); lsSet(LS, clients); }
+  }
+  async function adminDelete(id){
+    const c = clients.find(x=>x.id===id);
+    await publish(d=>{ d.clients = d.clients.filter(x=>x.id!==id); }, ((c&&c.name)||"거래처")+" 삭제");
+    clients = clients.filter(x=>x.id!==id); lsSet(LS, clients);
+    if(course.stops.some(s=>s.id===id)){ course.stops = course.stops.filter(s=>s.id!==id); saveCourse(); }
+    render();
+  }
+
   // course: 각자 본인 코스 (기기/계정별)
   let courseChain = Promise.resolve(), courseDirty = false;
   function courseRef(){ return (db && myId) ? db.doc("data/users/"+myId+"/course") : null; }
@@ -384,6 +457,15 @@
     mode = m;
     $("#syncDot").className = "dot"+(m==="db"?" on":m==="local"?" local":"");
     $("#syncTxt").textContent = m==="db" ? "팀 공유 중" : m==="local" ? "이 기기에 저장" : m==="stale" ? "연결 확인 중…" : "연결 중…";
+    applyRole();
+  }
+  function applyRole(){
+    const admin = isAdmin();
+    const t = $("#syncTxt"), d = $("#syncDot"); if(!t) return;
+    t.textContent = admin ? "관리자" : (settings.me ? settings.me : "직원");
+    d.className = "dot " + (admin ? "on" : "local");
+    $("#btnAdd").style.display = admin ? "" : "none";
+    $("#btnUp").style.display = admin ? "" : "none";
   }
 
   // 저장소: 지금은 이 기기(localStorage). 나중에 Firebase로 바꿀 때 saveClient / removeClient / saveCourse / init 만 교체하면 됨.
@@ -405,38 +487,42 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
-    try{
-      const r = await fetch("clients.json?t="+Date.now(), {cache:"no-store"});
-      if(r.ok) data = await r.json();
-    }catch(e){ data = null; }
-    if(!data || !Array.isArray(data.clients)){
-      return;
+    if(isAdmin()){
+      try{ data = (await ghGet()).data; }catch(e){ data = null; }
     }
+    if(!data){
+      try{
+        const r = await fetch("clients.json?t="+Date.now(), {cache:"no-store"});
+        if(r.ok) data = await r.json();
+      }catch(e){ data = null; }
+    }
+    if(!data || !Array.isArray(data.clients)) return;
+    applyShared(data, firstRun, false);
+  }
+  // 회사 목록이 기준(정답). 공용 거래처의 회사 정보는 그대로 덮어쓰고, 직원 개인 정보(내 메모·숨김·코스)는 유지.
+  function applyShared(data, firstRun, silent){
+    staffList = Array.isArray(data.staff) ? data.staff.filter(Boolean) : [];
+    lsSet("clientParkApp.staff.v1", staffList);
     const ids = new Set();
     let added = 0, changed = 0, removed = 0;
     data.clients.forEach(sv=>{
       if(!sv || !sv.id || !sv.name || !sv.address) return;
       ids.add(sv.id);
-      const cur = clients.find(c=>c.id===sv.id);
-      if(!cur){
-        const n = {id:sv.id, shared:true, parking:"unk", building:"unk", enforce:[], parkingSpot:"", freeTime:""};
-        SHARED_FIELDS.forEach(k=>{ if(sv[k]!==undefined && sv[k]!==null) n[k]=sv[k]; });
-        n.updatedAt = nowStr(); clients.push(n); added++;
-      } else {
-        let diff = false;
-        cur.shared = true;
-        SHARED_FIELDS.forEach(k=>{
-          const v = sv[k]; if(v===undefined || v===null || v==="" || (Array.isArray(v)&&!v.length&&k!=="enforce")) return;
-          if(JSON.stringify(cur[k])!==JSON.stringify(v)){ cur[k]=v; diff=true; }
-        });
-        if(diff){ cur.updatedAt = nowStr(); changed++; }
-      }
+      let cur = clients.find(c=>c.id===sv.id), isNew = false;
+      if(!cur){ cur = {id:sv.id}; clients.push(cur); added++; isNew = true; }
+      const before = JSON.stringify(SHARED_FIELDS.map(k=>cur[k]));
+      cur.shared = true;
+      SHARED_FIELDS.forEach(k=>{
+        let v = sv[k];
+        if(v===undefined || v===null) v = (k==="assignees"||k==="enforce"||k==="publicParking") ? [] : (k==="parking"||k==="building" ? "unk" : "");
+        cur[k] = v;
+      });
+      if(before !== JSON.stringify(SHARED_FIELDS.map(k=>cur[k]))){ cur.updatedAt = nowStr(); if(!isNew) changed++; }
     });
-    // 회사 목록에서 빠진 공용 거래처는 폰에서도 정리 (직원이 직접 추가한 거래처는 그대로)
     const before = clients.length;
     clients = clients.filter(c=>!(c.shared && !ids.has(c.id)));
     removed = before - clients.length;
@@ -444,7 +530,9 @@
     lsSet(LS, clients);
     sharedInfo = {updated:String(data.updated||""), count:ids.size, checkedAt:nowStr()+" "+hm()};
     lsSet(LSS, sharedInfo);
-    render(); renderCourse(); updateBadge();
+    if(fStaff===null) fStaff = (settings.me && staffList.includes(settings.me)) ? "me" : "all";
+    render(); renderCourse(); updateBadge(); applyRole();
+    if(silent) return;
     if(!firstRun && (added||changed||removed)) toast(`회사 목록 업데이트: 신규 ${added} · 변경 ${changed}${removed?" · 삭제 "+removed:""}`);
     else if(firstRun && ids.size) toast(`회사 거래처 ${ids.size}곳을 불러왔어요`);
   }
@@ -454,18 +542,42 @@
   function filtered(){
     return clients.map(c=>({c, s:score(c,query)})).filter(({c,s})=>{
       if(!s) return false;
+      if(isHidden(c.id)) return false;
+      if(!staffOk(c)) return false;
       if(fCat!=="all" && catOf(c)!==fCat) return false;
       if(fPark!=="all" && (c.parking||"unk")!==fPark) return false;
       if(fArea!=="all" && area(c.address)!==fArea) return false;
       return true;
     }).sort((a,b)=>b.s-a.s || String(a.c.name).localeCompare(String(b.c.name),"ko")).map(x=>x.c);
   }
+  function staffOk(c){
+    const f = fStaff || "all";
+    if(f==="all") return true;
+    const a = Array.isArray(c.assignees) ? c.assignees : [];
+    if(f==="me") return !!settings.me && a.includes(settings.me);
+    if(f==="none") return !a.length;
+    return a.includes(f);
+  }
+  function renderStaffChips(){
+    const el = $("#staffChips"); if(!el) return;
+    const vis = clients.filter(c=>!isHidden(c.id));
+    if(!staffList.length){ el.style.display="none"; el.innerHTML=""; return; }
+    const cnt = f => { const o=fStaff; fStaff=f; const n=vis.filter(staffOk).length; fStaff=o; return n; };
+    const items = [["all","👥 전체"]];
+    if(settings.me && staffList.includes(settings.me)) items.push(["me","🙋 내 거래처"]);
+    staffList.forEach(n=>{ if(n!==settings.me) items.push([n,"👤 "+n]); });
+    items.push(["none","미배정"]);
+    el.style.display="";
+    el.innerHTML = items.map(([k,l])=>`<button class="chip ${ (fStaff||"all")===k?"on":""}" data-staff="${esc(k)}">${esc(l)} ${cnt(k)}</button>`).join("");
+  }
   function renderChips(){
-    const cc = {all:clients.length,hospital:0,wholesale:0,etc:0};
-    clients.forEach(c=>cc[catOf(c)]++);
+    renderStaffChips();
+    const vis = clients.filter(c=>!isHidden(c.id) && staffOk(c));
+    const cc = {all:vis.length,hospital:0,wholesale:0,etc:0};
+    vis.forEach(c=>cc[catOf(c)]++);
     $("#catTabs").innerHTML = [["all","전체"],["hospital","병원"],["wholesale","도매상"],["etc","기타"]]
       .map(([k,l])=>`<button class="${fCat===k?"on":""}" data-cat="${k}">${l} ${cc[k]}</button>`).join("");
-    const base = clients.filter(c=>fCat==="all"||catOf(c)===fCat);
+    const base = vis.filter(c=>fCat==="all"||catOf(c)===fCat);
     const pc = {all:base.length,easy:0,mid:0,hard:0,unk:0};
     base.forEach(c=>pc[c.parking||"unk"]++);
     $("#parkChips").innerHTML = [["all","주차 전체"],["hard","🔴 어려움"],["mid","🟠 보통"],["easy","🟢 쉬움"],["unk","⚪ 미확인"]]
@@ -506,10 +618,11 @@
   function render(){
     renderChips();
     const rows = filtered();
-    $("#count").textContent = clients.length ? `${rows.length}곳 표시 / 전체 ${clients.length}곳` : "";
+    const nHid = clients.filter(c=>isHidden(c.id)).length;
+    $("#count").textContent = clients.length ? `${rows.length}곳 표시 / 전체 ${clients.length}곳${nHid?` · 숨김 ${nHid}`:""}` : "";
     if(!clients.length){
       $("#list").innerHTML = mode==="loading" ? '<div class="empty">불러오는 중…</div>' :
-        `<div class="empty">아직 등록된 거래처가 없어요.<br>아래 <b>엑셀 올리기</b>로 한 번에 등록하거나<br><b>직접 추가</b>로 하나씩 넣어보세요.<br><br><span class="hint">회사 거래처 목록이 올라오면 자동으로 채워져요.</span></div>`;
+        `<div class="empty">아직 등록된 거래처가 없어요.<br><span class="hint">회사 거래처 목록이 올라오면 자동으로 채워져요.</span></div>`;
       return;
     }
     if(!rows.length){ $("#list").innerHTML='<div class="empty">조건에 맞는 거래처가 없어요.</div>'; return; }
@@ -520,7 +633,7 @@
       return `<div class="card">
         <div class="card-h" data-open="${esc(c.id)}">
           <div><div class="name">${hl(c.name, query)}</div>
-          <div class="meta"><span class="tag cat" style="padding:1px 6px">${CATS[catOf(c)]}</span> ${esc([c.dept,c.contact].filter(Boolean).join(" · "))}</div></div>
+          <div class="meta"><span class="tag cat" style="padding:1px 6px">${CATS[catOf(c)]}</span> ${esc([c.dept,c.contact].filter(Boolean).join(" · "))}${(c.assignees||[]).length?` · 👤 ${esc(c.assignees.join(", "))}`:""}</div></div>
           <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
         </div>
         <div class="addr" data-open="${esc(c.id)}">${esc(c.address)}${c.addressDetail?` <span style="color:var(--sub)">${esc(c.addressDetail)}</span>`:""}</div>
@@ -549,32 +662,67 @@
     $("#"+id).onclick = e=>{ const b=e.target.closest("button"); if(!b) return; onPick(b.dataset.k); [...$("#"+id).children].forEach(x=>x.classList.toggle("on",x===b)); };
   }
 
+  function staffToggles(id, cur){
+    return `<div class="tgl" id="${id}">${staffList.map(n=>`<button data-e="${esc(n)}" class="${cur.includes(n)?"on":""}" style="${cur.includes(n)?"background:var(--blue-soft);color:var(--blue);border-color:var(--blue)":""}">👤 ${esc(n)}</button>`).join("")||'<span class="hint">직원이 아직 없어요 · 메뉴 → 직원 관리에서 추가</span>'}</div>`;
+  }
+  function bindToggles(id, arr){
+    const el = $("#"+id); if(!el) return;
+    el.onclick = e=>{ const b=e.target.closest("button"); if(!b) return; const v=b.dataset.e; const i=arr.indexOf(v);
+      if(i>=0) arr.splice(i,1); else arr.push(v);
+      const on = i<0; b.classList.toggle("on",on); b.style.cssText = on ? "background:var(--blue-soft);color:var(--blue);border-color:var(--blue)" : ""; };
+  }
+  function infoRows(c){
+    const enf = Array.isArray(c.enforce)?c.enforce:[];
+    return `<div class="sec"><div class="sec-t">🅿️ 주차 정보</div>
+      <div class="row"><span>주차 난이도</span><span><span class="badge b-${PARK[c.parking||"unk"].cls}">${PARK[c.parking||"unk"].short}</span></span></div>
+      <div class="row"><span>건물 주차</span><span>${{yes:"가능",no:"불가"}[c.building]||"모름"}${c.freeTime?" · "+esc(c.freeTime):""}</span></div>
+      ${enf.length?`<div class="row"><span>주의</span><span>${enf.map(e=>`<span class="tag">${esc(e)}</span>`).join(" ")}</span></div>`:""}
+      ${c.parkingSpot?`<div class="row"><span>추천 장소</span><span>${esc(c.parkingSpot)}</span></div>`:""}
+      ${c.parkingNote?`<div class="note">${esc(c.parkingNote)}</div>`:""}
+    </div>`;
+  }
   function detail(id){
     const c = clients.find(x=>x.id===id); if(!c) return;
-    editing = Object.assign({}, c, {enforce: Array.isArray(c.enforce)?c.enforce.slice():[]});
+    const admin = isAdmin(), canEditShared = admin || !c.shared;
+    editing = Object.assign({}, c, {enforce: Array.isArray(c.enforce)?c.enforce.slice():[], assignees: Array.isArray(c.assignees)?c.assignees.slice():[]});
     if(!CATS[editing.category]) editing.category = catOf(c);
-    const ic = inCourse(c.id);
-    openSheet(`
+    const ic = inCourse(c.id), hid = isHidden(c.id);
+    const head = `
       <h2>${esc(c.name)}</h2>
       <div class="meta">${esc([CATS[editing.category],c.dept,c.contact].filter(Boolean).join(" · "))}</div>
       <div class="sec">
         <div class="row"><span>주소</span><span>${esc(c.address)}${c.addressDetail?"<br>"+esc(c.addressDetail):""}</span></div>
         <div class="row"><span>연락처</span><span>${c.phone?`<a class="tel" href="${esc(telHref(c.phone))}">${esc(c.phone)}</a>`:"-"}</span></div>
-        <div class="row"><span>담당자</span><span>${esc(c.contact||"-")}</span></div>
+        <div class="row"><span>담당 직원</span><span>${(c.assignees||[]).length?esc(c.assignees.join(", ")):"미배정"}</span></div>
       </div>
       <button class="btn ${ic?"g":"b"}" id="dCourse">${ic?"✓ 오늘 코스에 있음 (빼기)":"🚚 오늘 코스에 추가"}</button>
       ${pubSection(c)}
       <div class="sec"><div class="sec-t">네이버지도</div>
         <div class="grid2">
-          <a class="act primary" href="${esc(L.place(c))}" target="_blank" rel="noopener">주소로 위치·길찾기</a>
-          <a class="act" href="${esc(L.placeName(c))}" target="_blank" rel="noopener">상호로 검색</a>
-          <a class="act primary" href="${esc(L.pub(c))}" target="_blank" rel="noopener">주변 공영주차장</a>
-          <a class="act" href="${esc(L.park(c))}" target="_blank" rel="noopener">주변 모든 주차장</a>
+          <a class="act primary" href="${esc(IS_PC?W.pin(c):L.place(c))}" target="_blank" rel="noopener">📍 위치·길찾기</a>
+          <a class="act" href="${esc(L.park(c))}" target="_blank" rel="noopener">주변 주차장 검색</a>
         </div>
-      </div>
+      </div>`;
+    const myNote = `
+      <div class="sec"><div class="sec-t">📝 내 메모 (이 폰에만 저장 · 회사 업데이트로 안 지워짐)</div>
+        <textarea class="in" id="dMy" placeholder="예) 원장님 오후엔 부재, 뒷문 벨 누르기">${esc(c.myNote||"")}</textarea>
+      </div>`;
+    if(!canEditShared){
+      // 직원 화면: 회사 정보는 보기만, 내 메모·숨기기만 가능
+      openSheet(head + infoRows(c) + myNote + `
+        <button class="btn p" id="dSave">내 메모 저장</button>
+        <button class="btn g" id="dHide">${hid?"🙈 숨김 해제":"🙈 내 목록에서 숨기기"}</button>
+        <div class="upd">🏢 회사 공용 거래처 · 주소·주차 정보 수정은 관리자만 할 수 있어요. 바뀐 점은 메모장에 적어 관리자에게 전달해 주세요.</div>`);
+      $("#dCourse").onclick = ()=>{ toggleCourse(c.id); detail(c.id); };
+      $("#dSave").onclick = ()=>{ c.myNote = $("#dMy").value.trim(); lsSet(LS, clients); render(); toast("내 메모를 저장했어요"); closeSheet(); };
+      $("#dHide").onclick = ()=>{ toggleHide(c.id); closeSheet(); };
+      return;
+    }
+    openSheet(head + `
+      ${admin?`<div class="sec"><div class="sec-t">👥 담당 직원 (여러 명 가능)</div>${staffToggles("tStaff", editing.assignees)}</div>`:""}
       <div class="sec"><div class="sec-t">좌표 (네이버 경로 자동 입력에 필요)</div>
         <input class="in" id="dXY" inputmode="decimal" placeholder="위도, 경도  예) 37.5000, 127.0364" value="${hasXY(c)?esc(c.lat+", "+c.lng):""}">
-        <div class="hint" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음 — 전체 경로 보내기에 포함돼요":"⚠️ 좌표 없음 — 전체 경로 보내기에서 빠져요"}<br>구글지도에서 위치를 길게 누르면 나오는 숫자(예: 37.50, 127.03)를 붙여넣으면 돼요.</div>
+        <div class="hint" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"⚠️ 좌표 없음 — 전체 경로 보내기에서 빠져요"}</div>
       </div>
       <div class="sec"><div class="sec-t">구분</div>
         ${segHtml("sCat", [["hospital","병원"],["wholesale","도매상"],["etc","기타"]], editing.category, "c3")}
@@ -587,42 +735,54 @@
         <label class="f">무료 시간 / 주차 조건</label>
         <input class="in" id="dFree" placeholder="예) 방문등록 시 1시간 무료" value="${esc(c.freeTime||"")}">
       </div>
-      <div class="sec"><div class="sec-t">주정차 단속 · 주의사항 (해당하는 것 모두)</div>
+      <div class="sec"><div class="sec-t">주정차 단속 · 주의사항</div>
         <div class="tgl" id="tEnf">${ENF.map(e=>`<button data-e="${esc(e)}" class="${editing.enforce.includes(e)?"on":""}">${e==="단속카메라"?"📷 ":""}${esc(e)}</button>`).join("")}</div>
         <label class="f">추천 주차 장소</label>
         <input class="in" id="dSpot" placeholder="예) 건물 지하 B2 / 뒤편 ○○공영주차장" value="${esc(c.parkingSpot||"")}">
-        <label class="f">주차 메모 (회사 공용)</label>
-        <textarea class="in" id="dNote" placeholder="예) 오전 10~12시 만차, 정문 앞 카메라 있음, 뒷문 하역 가능">${esc(c.parkingNote||"")}</textarea>
-        <label class="f">📝 내 메모 (이 폰에만 저장 · 회사 업데이트로 안 지워짐)</label>
-        <textarea class="in" id="dMy" placeholder="예) 김원장님 오후엔 부재, 뒷문 벨 누르기">${esc(c.myNote||"")}</textarea>
-        ${c.shared?`<div class="upd">🏢 회사 공용 거래처 · 주소·연락처·주차 정보는 회사 업데이트 시 최신으로 바뀌어요</div>`:""}
-        ${c.updatedAt?`<div class="upd">마지막 수정 ${esc(c.updatedAt)}</div>`:""}
+        <label class="f">주차 메모 / 비고 (회사 공용)</label>
+        <textarea class="in" id="dNote" placeholder="예) 오전 10~12시 만차, 수요일 오후 휴진">${esc(c.parkingNote||"")}</textarea>
       </div>
-      <button class="btn p" id="dSave">저장</button>
-      <button class="btn g" id="dEdit">거래처 정보 수정</button>
-      <button class="btn d" id="dDel">삭제</button>
+      ${myNote}
+      ${c.updatedAt?`<div class="upd">마지막 수정 ${esc(c.updatedAt)}</div>`:""}
+      <button class="btn p" id="dSave">${admin?"💾 저장 (모든 직원에게 반영)":"저장"}</button>
+      <button class="btn g" id="dEdit">이름·주소·연락처 수정</button>
+      <button class="btn g" id="dHide">${hid?"🙈 숨김 해제":"🙈 내 목록에서 숨기기"}</button>
+      <button class="btn d" id="dDel">${admin && c.shared?"회사 목록에서 삭제":"삭제"}</button>
     `);
     bindSeg("sCat", k=>editing.category=k);
     bindSeg("sPark", k=>editing.parking=k);
     bindSeg("sBld", k=>editing.building=k);
+    bindToggles("tStaff", editing.assignees);
     $("#tEnf").onclick = e=>{ const b=e.target.closest("button"); if(!b) return; const v=b.dataset.e; const i=editing.enforce.indexOf(v); if(i>=0) editing.enforce.splice(i,1); else editing.enforce.push(v); b.classList.toggle("on",i<0); };
     $("#dCourse").onclick = ()=>{ toggleCourse(c.id); detail(c.id); };
+    $("#dHide").onclick = ()=>{ toggleHide(c.id); closeSheet(); };
     $("#dSave").onclick = async ()=>{
       editing.parkingSpot=$("#dSpot").value.trim(); editing.parkingNote=$("#dNote").value.trim(); editing.freeTime=$("#dFree").value.trim();
       editing.myNote=$("#dMy").value.trim();
       const xyRaw = $("#dXY").value.trim();
       if(xyRaw){ const g=parseCoord(xyRaw); if(!g){ toast("좌표 형식을 확인해 주세요 (예: 37.50, 127.03)"); return; } editing.lat=g.lat; editing.lng=g.lng; }
       else { editing.lat=""; editing.lng=""; }
-      $("#dSave").disabled=true;
-      try{ await saveClient(editing); toast("저장했어요"); closeSheet(); }catch(e){ $("#dSave").disabled=false; }
+      $("#dSave").disabled=true; $("#dSave").textContent="저장 중…";
+      try{
+        if(admin){ await adminSave(editing); toast("저장했어요 · 직원 앱에는 몇 분 뒤 반영돼요"); }
+        else { await saveClient(editing); toast("저장했어요"); }
+        closeSheet();
+      }catch(e){ $("#dSave").disabled=false; $("#dSave").textContent="다시 저장"; }
     };
     $("#dEdit").onclick = ()=>form(c);
     $("#dDel").onclick = ()=>confirmDel(c);
   }
+  function toggleHide(id){
+    const i = settings.hidden.indexOf(id);
+    if(i>=0){ settings.hidden.splice(i,1); toast("다시 보이게 했어요"); }
+    else { settings.hidden.push(id); toast("숨겼어요 · 메뉴 → 숨긴 거래처에서 되돌릴 수 있어요"); }
+    saveSettings(); render();
+  }
   function confirmDel(c){
-    openSheet(`<h2>삭제할까요?</h2><p class="hint">${esc(c.name)}의 정보와 주차 메모가 모두 지워져요.</p>
+    const shared = isAdmin() && c.shared;
+    openSheet(`<h2>삭제할까요?</h2><p class="hint">${esc(c.name)}${shared?"이(가) 회사 목록에서 지워지고, 모든 직원 앱에서도 사라져요.":"의 정보가 이 폰에서 지워져요."} 되돌릴 수 없어요.</p>
       <button class="btn d" style="background:var(--hard-soft)" id="yes">삭제</button><button class="btn g" id="no">취소</button>`);
-    $("#yes").onclick = async ()=>{ try{ await removeClient(c.id); toast("삭제했어요"); closeSheet(); }catch(e){} };
+    $("#yes").onclick = async ()=>{ $("#yes").disabled=true; try{ if(shared) await adminDelete(c.id); else await removeClient(c.id); toast("삭제했어요"); closeSheet(); }catch(e){ $("#yes").disabled=false; } };
     $("#no").onclick = ()=>detail(c.id);
   }
   function form(c){
@@ -631,20 +791,27 @@
     openSheet(`<h2>${isNew?"거래처 추가":"정보 수정"}</h2>
       <label class="f">구분</label>
       ${segHtml("fCat", [["hospital","병원"],["wholesale","도매상"],["etc","기타"]], CATS[c.category]?c.category:catOf(c), "c3")}
-      ${FIELDS.filter(f=>!["parkingNote","category","lat","lng"].includes(f.key)).map(f=>`<label class="f">${f.label}${f.req?" *":""}</label>
+      ${isAdmin()?`<label class="f">담당 직원</label>${staffToggles("fStaffT", (c.assignees=Array.isArray(c.assignees)?c.assignees.slice():[]))}`:""}
+      ${FIELDS.filter(f=>!["parkingNote","category","lat","lng","assignees"].includes(f.key)).map(f=>`<label class="f">${f.label}${f.req?" *":""}</label>
         <input class="in" id="f_${f.key}" value="${esc(c[f.key]||"")}" ${f.key==="phone"?'inputmode="tel"':""}>`).join("")}
       <label class="f">좌표 (위도, 경도) — 선택</label>
       <input class="in" id="fXY" inputmode="decimal" placeholder="예) 37.5000, 127.0364" value="${hasXY(c)?esc(c.lat+", "+c.lng):""}">
       <button class="btn p" id="fSave">저장</button><button class="btn g" id="fCancel">취소</button>`);
     let cat = CATS[c.category]?c.category:catOf(c);
     bindSeg("fCat", k=>cat=k);
+    bindToggles("fStaffT", c.assignees||[]);
     $("#fSave").onclick = async ()=>{
       const n = Object.assign({}, c, {category:cat});
       FIELDS.forEach(f=>{ const el=$("#f_"+f.key); if(el) n[f.key]=el.value.trim(); });
       const xr = $("#fXY").value.trim();
       if(xr){ const g=parseCoord(xr); if(!g){ toast("좌표 형식을 확인해 주세요 (예: 37.50, 127.03)"); return; } n.lat=g.lat; n.lng=g.lng; } else { n.lat=""; n.lng=""; }
       if(!n.name || !n.address){ toast("거래처명과 주소는 꼭 넣어주세요"); return; }
-      try{ await saveClient(n); toast("저장했어요"); closeSheet(); }catch(e){}
+      $("#fSave").disabled=true; $("#fSave").textContent="저장 중…";
+      try{
+        if(isAdmin()){ await adminSave(n); toast("저장했어요 · 직원 앱에는 몇 분 뒤 반영돼요"); }
+        else { await saveClient(n); toast("저장했어요"); }
+        closeSheet();
+      }catch(e){ $("#fSave").disabled=false; $("#fSave").textContent="다시 저장"; }
     };
     $("#fCancel").onclick = ()=> isNew ? closeSheet() : detail(c.id);
   }
@@ -699,7 +866,7 @@
     $("#impArea").innerHTML = `<div class="sec"><div class="sec-t">${esc(file)} · ${data.length}줄 · 열 연결 확인</div>
       ${FIELDS.map(f=>`<div class="map-row"><span>${f.label}${f.req?" *":""}</span><select class="in" data-map="${f.key}">${opt(map[f.key])}</select></div>`).join("")}
       <div class="sec-t" style="margin-top:14px">미리보기</div><div id="prev"></div>
-      <p class="hint">같은 거래처명+주소가 이미 있으면 연락처 등은 새 값으로 바꾸고, 기존 주차 정보는 그대로 둬요.</p>
+      <p class="hint">같은 거래처명+주소가 이미 있으면 엑셀에 있는 값으로 바꾸고, 엑셀에 없는 정보는 그대로 둬요.${isAdmin()?" <b>가져오면 모든 직원 앱에 반영돼요.</b>":""}</p>
       <button class="btn p" id="doImp">가져오기</button></div>`;
     $("#impArea").querySelectorAll("select").forEach(s=>s.onchange=()=>{ imp.map[s.dataset.map]=+s.value; preview(); });
     $("#doImp").onclick = doImport;
@@ -709,6 +876,7 @@
     const o={};
     FIELDS.forEach(f=>{ const i=imp.map[f.key]; o[f.key] = i>=0 ? String(r[i]==null?"":r[i]).trim() : ""; });
     o.phone = normPhone(o.phone);
+    o.assignees = String(o.assignees||"").split(/[,/·]/).map(x=>x.trim()).filter(Boolean);
     const ex = imp.extras || {};
     const val = k => ex[k]>=0 && ex[k]!=null ? String(r[ex[k]]==null?"":r[ex[k]]).trim() : null;
     let v;
@@ -733,6 +901,26 @@
   async function doImport(){
     const items = imp.data.map(rowObj).filter(o=>o.name&&o.address);
     const btn = $("#doImp"); btn.disabled = true;
+    if(isAdmin()){
+      btn.textContent = "회사 목록에 반영 중…";
+      const key = c => (norm(c.name)+"|"+norm(c.address));
+      let added=0, updated=0;
+      try{
+        await publish(d=>{
+          const ex = {}; d.clients.forEach(c=>ex[key(c)]=c);
+          items.forEach(o=>{
+            const part = {}; SHARED_FIELDS.forEach(k=>{ if(o[k]!==undefined && o[k]!=="" && !(Array.isArray(o[k]) && !o[k].length && k!=="assignees")) part[k]=o[k]; });
+            if(imp.map.assignees<0) delete part.assignees;
+            const cur = ex[key(o)];
+            if(cur){ Object.assign(cur, part); updated++; }
+            else { const n = Object.assign({id:uid(), parking:"unk", building:"unk", enforce:[], assignees:[]}, part); d.clients.push(n); ex[key(o)] = n; added++; }
+            (part.assignees||[]).forEach(nm=>{ if(!d.staff.includes(nm)) d.staff.push(nm); });
+          });
+        }, `엑셀로 거래처 ${items.length}곳 등록`);
+        closeSheet(); toast(`신규 ${added}곳 · 갱신 ${updated}곳 · 직원 앱에는 몇 분 뒤 반영돼요`);
+      }catch(e){ btn.disabled=false; btn.textContent="다시 시도"; }
+      return;
+    }
     const key = c => (norm(c.name)+"|"+norm(c.address));
     const existing = {}; clients.forEach(c=>existing[key(c)]=c);
     let added=0, updated=0, failed=0;
@@ -814,27 +1002,129 @@
     lsSet(LS, clients); render(); renderCourse(); if(!silent) toast("샘플 거래처 12곳을 넣었어요");
   }
   function menuSheet(){
-    const nSample = clients.filter(c=>/^sample\d+$/.test(c.id)).length;
+    const admin = isAdmin();
+    const nHid = clients.filter(c=>isHidden(c.id)).length;
+    const nLocal = clients.filter(c=>!c.shared).length;
     openSheet(`<h2>메뉴</h2>
-      <p class="hint">회사 공용 거래처는 앱을 열 때마다 자동으로 최신으로 맞춰져요. 내가 폰에서 적은 <b>내 메모</b>와 <b>오늘 코스</b>는 이 폰에만 저장돼요.</p>
-      <div class="note" style="margin-top:4px">🏢 회사 공용 거래처 목록: ${sharedInfo.count?`<b>${sharedInfo.count}곳</b> (회사 업데이트 ${esc(sharedInfo.updated||"-")})<br>마지막 확인 ${esc(sharedInfo.checkedAt||"-")}`:"아직 불러오지 않았어요"}</div>
-      <button class="btn b" id="mSync">🔄 회사 목록 지금 확인</button>
-      <button class="btn p" id="mExp">⬇️ 엑셀로 내보내기 (백업)</button>
-      ${nSample?`<button class="btn g" id="mDelSample">샘플 거래처 ${nSample}곳 지우기</button>`:""}
-      <button class="btn d" id="mWipe">전체 데이터 지우기</button>
-      <p class="hint" style="margin-top:14px">홈 화면에 추가하면 앱처럼 쓸 수 있어요: 사파리 공유 → '홈 화면에 추가' / 크롬 ⋮ → '홈 화면에 추가'.<br>브라우저의 '방문 기록·사이트 데이터 삭제'를 하면 저장된 거래처도 지워지니, 가끔 백업해 두세요.</p>`);
-    $("#mExp").onclick = exportXlsx;
+      <div class="note" style="margin-top:4px">${admin?"🔐 <b>관리자 모드</b> · 저장하면 모든 직원 앱에 반영돼요":"👤 직원 모드 · 회사 정보는 보기만 가능"}<br>
+        🏢 회사 거래처 ${sharedInfo.count?`<b>${sharedInfo.count}곳</b> (업데이트 ${esc(sharedInfo.updated||"-")})`:"아직 불러오지 않음"}</div>
+      <label class="f">🙋 내 이름 (내 거래처 보기에 사용)</label>
+      <select class="in" id="mMe"><option value="">선택 안 함</option>${staffList.map(n=>`<option ${settings.me===n?"selected":""}>${esc(n)}</option>`).join("")}</select>
+      <button class="btn b" id="mMemo">📝 메모장 (${settings.memos.length})</button>
+      ${nHid?`<button class="btn g" id="mHidden">🙈 숨긴 거래처 ${nHid}곳 보기</button>`:""}
+      <button class="btn g" id="mSync">🔄 회사 목록 지금 확인</button>
+      ${admin?`<button class="btn g" id="mStaff">👥 직원 관리 (${staffList.length}명)</button>`:""}
+      <button class="btn g" id="mExp">⬇️ 엑셀로 내보내기</button>
+      <button class="btn g" id="mAdmin">${admin?"🔐 관리자 설정 / 해제":"🔐 관리자 모드"}</button>
+      ${nLocal?`<button class="btn d" id="mDelLocal">이 폰에만 있는 거래처 ${nLocal}곳 지우기</button>`:""}
+      <p class="hint" style="margin-top:14px">홈 화면에 추가하면 앱처럼 쓸 수 있어요: 사파리 공유 → '홈 화면에 추가' / 크롬 ⋮ → '홈 화면에 추가'.</p>`);
+    $("#mMe").onchange = e=>{ settings.me = e.target.value; saveSettings(); fStaff = settings.me ? "me" : "all"; applyRole(); render(); toast(settings.me?`${settings.me} 님으로 설정했어요`:"이름 선택을 해제했어요"); };
+    $("#mMemo").onclick = memoSheet;
+    const mh = $("#mHidden"); if(mh) mh.onclick = hiddenSheet;
     $("#mSync").onclick = async ()=>{ await syncShared(false); toast("회사 목록을 확인했어요"); menuSheet(); };
-    const ds = $("#mDelSample"); if(ds) ds.onclick = ()=>{
-      const ids = new Set(clients.filter(c=>/^sample\d+$/.test(c.id)).map(c=>c.id));
+    const ms = $("#mStaff"); if(ms) ms.onclick = staffSheet;
+    $("#mExp").onclick = exportXlsx;
+    $("#mAdmin").onclick = adminSheet;
+    const dl = $("#mDelLocal"); if(dl) dl.onclick = ()=>{
+      const ids = new Set(clients.filter(c=>!c.shared).map(c=>c.id));
       clients = clients.filter(c=>!ids.has(c.id)); lsSet(LS, clients);
-      course.stops = course.stops.filter(s=>!ids.has(s.id)); saveCourse(); render(); closeSheet(); toast("샘플을 지웠어요");
+      course.stops = course.stops.filter(s=>!ids.has(s.id)); saveCourse(); render(); closeSheet(); toast("정리했어요");
     };
-    $("#mWipe").onclick = ()=>{
-      openSheet(`<h2>전체 데이터를 지울까요?</h2><p class="hint">거래처, 주차 정보, 코스가 모두 지워지고 되돌릴 수 없어요. 먼저 엑셀로 백업하는 걸 추천해요.</p>
-        <button class="btn d" style="background:var(--hard-soft)" id="wYes">모두 지우기</button><button class="btn g" id="wNo">취소</button>`);
-      $("#wYes").onclick = ()=>{ clients=[]; course={date:today(),stops:[]}; lsSet(LS,clients); saveCourse(); render(); closeSheet(); toast("모두 지웠어요"); };
-      $("#wNo").onclick = menuSheet;
+  }
+
+  // ---------- 메모장 (직원이 업로드 대신 적어두는 곳) ----------
+  function memoSheet(){
+    openSheet(`<h2>📝 메모장</h2>
+      <p class="hint">새 거래처, 바뀐 주차 정보, 전달할 내용을 적어두세요. <b>복사</b>를 눌러 카톡 등으로 관리자에게 보내면 돼요. 이 폰에만 저장돼요.</p>
+      <textarea class="in" id="memoIn" placeholder="예) [신규] ○○의원 / 서울 ○○구 ○○로 12 / 02-000-0000 / 건물 주차 가능&#10;예) [변경] 상봉퍼스트본정형외과 지하주차장 공사 중 → 매화 공영주차장 이용"></textarea>
+      <button class="btn p" id="memoAdd">메모 추가</button>
+      <div id="memoList" style="margin-top:10px"></div>`);
+    const draw = ()=>{
+      $("#memoList").innerHTML = settings.memos.length ? settings.memos.map((m,i)=>`<div class="note" style="margin-top:8px;white-space:pre-wrap">${esc(m.text)}
+<span class="upd">${esc(m.at||"")}</span>
+<div class="grid2" style="margin-top:8px"><button class="act primary" data-copy="${i}">📋 복사</button><button class="act" data-del="${i}">🗑 삭제</button></div></div>`).join("")
+        : `<div class="empty" style="padding:20px">아직 메모가 없어요.</div>`;
+    };
+    $("#memoAdd").onclick = ()=>{ const t=$("#memoIn").value.trim(); if(!t){ toast("내용을 적어주세요"); return; }
+      settings.memos.unshift({text:t, at:nowStr()+" "+hm()+(settings.me?" · "+settings.me:"")}); saveSettings(); $("#memoIn").value=""; draw(); toast("메모를 저장했어요"); };
+    $("#memoList").onclick = async e=>{
+      const c = e.target.closest("[data-copy]"), d = e.target.closest("[data-del]");
+      if(c){ const m = settings.memos[+c.dataset.copy]; try{ await navigator.clipboard.writeText(m.text+(settings.me?"\n- "+settings.me:"")); toast("복사했어요 · 카톡에 붙여넣기 하세요"); }catch(err){ toast("복사가 막혀 있어요 · 글을 길게 눌러 복사해 주세요"); } }
+      if(d){ settings.memos.splice(+d.dataset.del,1); saveSettings(); draw(); }
+    };
+    draw();
+  }
+
+  // ---------- 숨긴 거래처 ----------
+  function hiddenSheet(){
+    const list = clients.filter(c=>isHidden(c.id));
+    openSheet(`<h2>🙈 숨긴 거래처</h2>
+      ${list.length?list.map(c=>`<div class="pick" style="cursor:default"><div style="flex:1;min-width:0"><b>${esc(c.name)}</b><div class="meta">${esc(c.address)}</div></div>
+        <button class="act primary" style="flex:none;padding:7px 10px" data-unhide="${esc(c.id)}">다시 보기</button></div>`).join(""):`<div class="empty" style="padding:20px">숨긴 거래처가 없어요.</div>`}
+      <button class="btn g" id="hClose">닫기</button>`);
+    $("#sheetBody").querySelectorAll("[data-unhide]").forEach(b=>b.onclick=()=>{ toggleHide(b.dataset.unhide); hiddenSheet(); });
+    $("#hClose").onclick = menuSheet;
+  }
+
+  // ---------- 직원 관리 (관리자) ----------
+  function staffSheet(){
+    if(!isAdmin()){ toast("관리자만 할 수 있어요"); return; }
+    const list = staffList.slice();
+    const count = n => clients.filter(c=>(c.assignees||[]).includes(n)).length;
+    openSheet(`<h2>👥 직원 관리</h2>
+      <p class="hint">직원을 추가하면 거래처마다 담당 직원을 지정할 수 있고, 직원은 '내 거래처'만 모아 볼 수 있어요. 변경 내용은 모든 직원 앱에 반영돼요.</p>
+      <div id="stList"></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><input class="in" id="stIn" placeholder="직원 이름 (예: 김기사)"><button class="act primary" style="flex:none;padding:0 16px" id="stAdd">추가</button></div>
+      <button class="btn p" id="stSave">💾 저장 (모든 직원에게 반영)</button>
+      <button class="btn g" id="stClose">닫기</button>`);
+    const draw = ()=>{ $("#stList").innerHTML = list.length ? list.map((n,i)=>`<div class="pick" style="cursor:default"><div style="flex:1">👤 <b>${esc(n)}</b> <span class="meta">담당 ${count(n)}곳</span></div>
+      <button class="act" style="flex:none;padding:7px 10px;color:var(--hard)" data-rm="${i}">삭제</button></div>`).join("") : `<div class="empty" style="padding:16px">아직 직원이 없어요.</div>`; };
+    $("#stAdd").onclick = ()=>{ const v=$("#stIn").value.trim(); if(!v) return; if(list.includes(v)){ toast("이미 있어요"); return; } list.push(v); $("#stIn").value=""; draw(); };
+    $("#stList").onclick = e=>{ const b=e.target.closest("[data-rm]"); if(b){ list.splice(+b.dataset.rm,1); draw(); } };
+    $("#stSave").onclick = async ()=>{
+      $("#stSave").disabled=true; $("#stSave").textContent="저장 중…";
+      try{
+        await publish(d=>{ d.staff = list.slice(); d.clients.forEach(c=>{ if(Array.isArray(c.assignees)) c.assignees = c.assignees.filter(n=>list.includes(n)); }); }, "직원 목록 수정");
+        toast("직원 목록을 저장했어요"); menuSheet();
+      }catch(e){ $("#stSave").disabled=false; $("#stSave").textContent="다시 저장"; }
+    };
+    $("#stClose").onclick = menuSheet;
+    draw();
+  }
+
+  // ---------- 관리자 모드 (GitHub 키) ----------
+  function adminSheet(){
+    if(isAdmin()){
+      openSheet(`<h2>🔐 관리자 모드</h2>
+        <p class="hint">이 폰은 관리자 모드예요. 거래처 추가·수정·삭제, 엑셀 올리기, 직원 관리가 가능하고 저장하면 모든 직원 앱에 반영돼요.</p>
+        <button class="btn d" style="background:var(--hard-soft)" id="aOff">관리자 모드 해제 (이 폰에서 키 삭제)</button>
+        <button class="btn g" id="aBack">닫기</button>`);
+      $("#aOff").onclick = ()=>{ settings.token=""; saveSettings(); applyRole(); render(); toast("관리자 모드를 해제했어요"); closeSheet(); };
+      $("#aBack").onclick = menuSheet;
+      return;
+    }
+    openSheet(`<h2>🔐 관리자 모드 켜기</h2>
+      <p class="hint">관리자 키(GitHub 토큰)를 넣은 폰에서만 거래처를 추가·수정·삭제할 수 있어요. 키는 이 폰에만 저장되고 직원들에게는 보이지 않아요.</p>
+      <div class="note" style="margin-top:8px;line-height:1.7"><b>키 만드는 법 (PC 추천, 1번만)</b><br>
+        1. <a class="tel" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 토큰 만들기</a> 열기<br>
+        2. 이름 아무거나 · 만료일 선택(최대 1년)<br>
+        3. Repository access → <b>Only select repositories</b> → <b>client-app</b><br>
+        4. Permissions → Repository permissions → <b>Contents: Read and write</b><br>
+        5. Generate token → 나온 키(github_pat_…)를 복사해서 아래에 붙여넣기</div>
+      <label class="f">관리자 키</label>
+      <input class="in" id="aTok" type="password" autocomplete="off" placeholder="github_pat_...">
+      <button class="btn p" id="aOn">확인하고 켜기</button>
+      <button class="btn g" id="aBack">닫기</button>`);
+    $("#aBack").onclick = menuSheet;
+    $("#aOn").onclick = async ()=>{
+      const tok = $("#aTok").value.trim(); if(!tok){ toast("키를 붙여넣어 주세요"); return; }
+      $("#aOn").disabled=true; $("#aOn").textContent="확인 중…";
+      try{
+        const r = await ghReq("GET", `/repos/${GH.owner}/${GH.repo}`, null, tok);
+        if(!(r.permissions && r.permissions.push)) throw Object.assign(new Error("no push"),{status:403});
+        settings.token = tok; saveSettings(); applyRole(); await syncShared(false); render();
+        toast("관리자 모드를 켰어요"); closeSheet();
+      }catch(e){ $("#aOn").disabled=false; $("#aOn").textContent="확인하고 켜기"; toast(e.status===401?"키가 올바르지 않아요":"쓰기 권한이 없어요 · Contents: Read and write 확인"); }
     };
   }
   $("#btnMenu").onclick = menuSheet;
@@ -1044,12 +1334,14 @@
     const cb = e.target.closest("[data-course]"); if(cb){ toggleCourse(cb.dataset.course); return; }
     const o = e.target.closest("[data-open]"); if(o) detail(o.dataset.open);
   });
+  $("#staffChips").addEventListener("click", e=>{ const b=e.target.closest("[data-staff]"); if(b){ fStaff=b.dataset.staff; render(); } });
   $("#catTabs").addEventListener("click", e=>{ const b=e.target.closest("[data-cat]"); if(b){ fCat=b.dataset.cat; fPark="all"; render(); } });
   $("#parkChips").addEventListener("click", e=>{ const b=e.target.closest("[data-park]"); if(b){ fPark=b.dataset.park; render(); } });
   $("#areaChips").addEventListener("click", e=>{ const b=e.target.closest("[data-area]"); if(b){ fArea=b.dataset.area; render(); } });
   $("#q").addEventListener("input", e=>{ query=e.target.value; render(); });
   $("#btnUp").onclick = uploadSheet;
   $("#btnAdd").onclick = ()=>form(null);
+  $("#btnMemo").onclick = memoSheet;
 
   init();
 })();

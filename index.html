@@ -234,6 +234,44 @@
   .pk-dot.b-easy{background:var(--easy)} .pk-dot.b-mid{background:var(--mid)} .pk-dot.b-hard{background:var(--hard)} .pk-dot.b-unk{background:#c4c9cf}
   .cbtn{flex:none;width:44px;height:44px;border-radius:12px;background:var(--fill);display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:18px}
   .incourse{font-size:11.5px;padding:2px 7px;border-radius:6px;vertical-align:2px}
+  .app{padding-bottom:calc(170px + env(safe-area-inset-bottom))}
+  nav.bottom{border-top:0;box-shadow:0 -1px 0 var(--line)}
+  nav.bottom button{padding:9px 0 11px;font-size:12.5px}
+  nav.bottom button b{font-size:22px}
+  nav.bottom button.on{color:var(--brand)}
+  .selbar{z-index:9}
+  .nextbar{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));z-index:7;display:flex;justify-content:center;padding:0 12px 8px}
+  .nextbar[hidden]{display:none}
+  .nextbar .in{max-width:616px;width:100%;display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--card);border-radius:18px;padding:10px 10px 10px 16px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+  .nextbar .t{flex:1;min-width:0;cursor:pointer}
+  .nextbar .t small{display:block;font-size:11.5px;opacity:.7}
+  .nextbar .t b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nextbar a{flex:none;background:var(--brand);color:#fff;border-radius:12px;padding:11px 14px;font-weight:800;text-decoration:none;font-size:14px}
+  .cp-sum{font-size:15px;color:var(--ink);font-weight:600}
+  .cp-sum b{color:var(--brand);font-size:18px}
+  .pbar{height:8px;background:var(--fill);border-radius:8px;margin-top:10px;overflow:hidden}
+  .pbar i{display:block;height:100%;background:var(--brand);border-radius:8px;transition:width .3s}
+  .tbar{display:flex;gap:6px;overflow-x:auto;padding:2px 12px 4px;scrollbar-width:none}
+  .tbar::-webkit-scrollbar{display:none}
+  .tbar button{flex:none;border:0;background:var(--card);border-radius:12px;padding:10px 13px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+  #courseList .card.next{background:var(--card)}
+  .tl{background:var(--card);border-radius:20px;padding:6px 0}
+  .tl-row{display:flex;align-items:center;gap:12px;padding:10px 14px 10px 14px;cursor:pointer;position:relative}
+  .tl-num{flex:none;width:30px;height:30px;border-radius:50%;background:var(--fill);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13.5px;position:relative;z-index:1}
+  .tl-num.urgent{background:var(--hard);color:#fff}
+  .tl-gap{font-size:11.5px;color:var(--sub);padding:0 0 0 58px;margin:-2px 0;position:relative}
+  .tl-gap:before{content:"";position:absolute;left:28px;top:-12px;bottom:-12px;border-left:2px dashed var(--line)}
+  .tl-body{flex:1;min-width:0}
+  .tl-name{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tl-meta{font-size:12.5px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tl-more{flex:none;color:var(--sub);font-size:18px;padding:0 4px}
+  .rtag{font-size:11px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--brand-soft);color:var(--brand);margin-right:4px}
+  .rtag.r2{background:#f3e8ff;color:#8b3fd9}
+  .donefold{width:100%;border:0;background:var(--card);border-radius:16px;padding:14px;font-weight:700;color:var(--sub);cursor:pointer;margin-top:2px}
+  .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  .menu-grid button{border:0;background:var(--fill);border-radius:14px;padding:16px 8px;font-size:15px;font-weight:700;cursor:pointer;color:var(--ink)}
+  .menu-grid .ok{background:var(--easy);color:#fff}
+  .menu-grid .del{color:var(--hard)}
 </style>
 </head>
 <body>
@@ -261,24 +299,6 @@
         <div class="chips" id="areaChips"></div>
       </div>
     </header>
-    <div class="cpanel" id="cPanel">
-      <div class="cp-head">
-        <div><div class="cp-title"><span id="cpWho">내 </span>오늘 코스<small id="courseDate"></small></div><div class="cp-sum" id="cpCount"></div></div>
-        <button class="cp-toggle" id="cpToggle">펼치기 ▼</button>
-      </div>
-      <div class="c-head" id="cpBody" style="display:none">
-        <div class="chips" id="courseWho" style="display:none"></div>
-        <div class="c-stat" id="cStat"></div>
-        <button class="btn p" id="cRoute" style="margin-top:12px">🧭 전체 경로 네이버지도로 보내기</button>
-        <div class="c-tools" id="cTools" style="grid-template-columns:1fr 1fr">
-          <button class="act" id="cSort">📍 동선순 정렬</button>
-          <button class="act" id="cOrigin" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🏁 출발지</button>
-          <button class="act" id="cHist">📅 지난 코스</button>
-          <button class="act" id="cReset">↺ 새 코스</button>
-        </div>
-      </div>
-      <div class="list" id="courseList"></div>
-    </div>
     <div class="count" id="count"></div>
     <div class="list" id="list"></div>
   </section>
@@ -295,7 +315,29 @@
     <div class="list" id="dpList"></div>
   </section>
 
-  <section id="viewCourse" hidden></section>
+  <section id="viewCourse" hidden>
+    <header>
+      <div class="top">
+        <h1><span id="cpWho" hidden></span>오늘 코스 <small id="courseDate" style="font-size:14px;color:var(--sub);font-weight:600"></small></h1>
+        <button class="sync" id="btnWho2" style="border:0;background:var(--card);border-radius:999px;padding:9px 13px;cursor:pointer;font-size:13px;color:var(--ink);font-weight:700"></button>
+      </div>
+    </header>
+    <div class="cpanel" id="cPanel">
+      <div class="cp-sum" id="cpCount"></div>
+      <div class="pbar"><i id="cpBar"></i></div>
+      <div class="chips" id="courseWho" style="display:none"></div>
+      <div class="c-stat" id="cStat" style="display:none"></div>
+      <div id="cpBody" hidden><button id="cpToggle"></button></div>
+    </div>
+    <div class="tbar" id="cTools">
+      <button id="cRoute">🧭 전체 경로</button>
+      <button id="cSort">📍 동선순 정렬</button>
+      <button id="cOrigin">🏁 출발지</button>
+      <button id="cHist">📅 지난 코스</button>
+      <button id="cReset">↺ 새 코스</button>
+    </div>
+    <div class="list" id="courseList"></div>
+  </section>
 </div>
 
 <div class="fab" id="fab">
@@ -313,8 +355,9 @@
   </div>
 </div></div>
 
-<nav class="bottom" style="display:none"><div class="in">
-  <button id="navClients" class="on"><b>🏥</b>거래처</button>
+<div class="nextbar" id="nextBar" hidden></div>
+<nav class="bottom"><div class="in">
+  <button id="navClients" class="on"><b>🏢</b>거래처</button>
   <button id="navDispatch" style="display:none"><b>📋</b>배차</button>
   <button id="navCourse"><b>🚚</b><span>오늘 코스<span id="navBadge"></span></span></button>
 </div></nav>
@@ -364,7 +407,7 @@
   }
   function telHref(p){return "tel:"+String(p||"").replace(/[^0-9+]/g,"")}
   function normPhone(v){ let s=String(v==null?"":v).trim(); if(/^\d{8,10}$/.test(s) && s[0]!=="0") s="0"+s; return s; }
-  function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1900)}
+  function toast(msg){const t=$("#toast");t.onclick=null;t.style.cursor="";t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1900)}
   function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
   function nowStr(){const d=new Date();return d.getFullYear()+"."+(d.getMonth()+1)+"."+d.getDate()}
   function hm(){const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
@@ -611,6 +654,7 @@
     const t = $("#syncTxt"), d = $("#syncDot"); if(!t) return;
     t.textContent = (admin ? "🔐 " : "👤 ") + (settings.me || "이름 선택") + " ▾";
     const ct = $("#cpWho"); if(ct) ct.textContent = settings.me ? settings.me+" " : "내 ";
+    const w2 = $("#btnWho2"); if(w2) w2.textContent = "👤 "+(settings.me || "이름 선택")+" ▾";
     d.className = "dot " + (admin ? "on" : "local");
     $("#btnAdd").style.display = admin ? "" : "none";
     $("#btnUp").style.display = admin ? "" : "none";
@@ -839,6 +883,7 @@
     const n = pickSel.size;
     $("#selBar").classList.toggle("show", n>0);
     $("#fab").style.display = n>0 ? "none" : "";
+    renderNextBar();
     $("#selCount").textContent = `${n}곳 선택`;
     $("#selNames").textContent = [...pickSel].map(id=>shortName(cById(id)||{})).join(", ");
   }
@@ -851,7 +896,9 @@
     already.forEach(id=>{ const st = course.stops.find(x=>x.id===id && !x.done); if(st) st.round = round; });
     addStops(ids.filter(id=>!already.includes(id)), round);
     pickSel.clear(); updateSelBar(); render();
-    toast(`${ids.length}곳 → ${round}차 코스`);
+    toast(`✓ ${ids.length}곳 → ${round}차 코스 · 코스 보기 ›`);
+    { const t=$("#toast"); t.style.cursor="pointer"; t.onclick=()=>{ t.classList.remove("show"); go("course"); };
+      clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3500); }
   }
   function inCourse(id){ return course.stops.some(s=>s.id===id && !s.done); }
   function render(){
@@ -1763,7 +1810,7 @@
         ${c.phone?`<a href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span style="display:flex;align-items:center;justify-content:center;border-radius:16px;background:var(--fill);opacity:.4;font-weight:800">📞 없음</span>`}
         ${fin}
       </div>
-      <div style="margin-top:8px">${ctl}</div>
+      <button class="act" style="width:100%;margin-top:8px;padding:13px" data-menu="${esc(s.id)}">⋯ 순서 · 1차/2차 · 긴급 · 빼기</button>
     </div>`;
   }
   let courseWho = "me";   // "me" = 내 코스, 그 외 = 직원 이름 (배차 기준 코스 보기)
@@ -1807,57 +1854,107 @@
         </div></div>`;
     }).join("");
   }
-  let courseOpen = false;
+  let courseOpen = false, doneOpen = false;
   function renderCourse(){
     renderOrigin();
     renderCourseWho();
     if(courseWho!=="me"){ renderStaffCourse(courseWho); return; }
     $("#cStat").style.display = "none";
     $("#cTools").style.display = "";
-    $("#cpBody").style.display = courseOpen ? "" : "none";
-    $("#cpToggle").textContent = courseOpen ? "접기" : "전체 보기";
-    { const pend = course.stops.filter(st=>!st.done), r1 = pend.filter(st=>sRound(st)==="1").length;
-      const urg = pend.filter(st=>st.urgent).length, r2 = pend.length-r1;
-      $("#cpCount").innerHTML = course.stops.length
-        ? `남은 <b>${pend.length}</b>곳${r1&&r2?` (1차 ${r1} · 2차 ${r2})`:""}${urg?` · <b style="color:var(--hard)">긴급 ${urg}</b>`:""} · 완료 ${course.stops.length-pend.length}`
-        : "거래처를 ☑ 체크해서 코스에 추가하세요"; }
-    const d = course.date ? course.date.slice(5).replace("-","/") : "";
-    $("#courseDate").textContent = d ? d : "";
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
-    if(!course.stops.length){
-      $("#courseList").innerHTML = `<div class="hint" style="padding:6px 2px 2px">아래 목록에서 거래처를 ☑ 체크하고 <b>1차 / 2차로 코스 추가</b>를 누르세요.${lsGet(histKey(),null)?" 지난 코스는 펼치기 → 📅 지난 코스.":""}</div>`;
-      return;
+    const total = course.stops.length, urg = pending.filter(s=>s.urgent).length;
+    const d = course.date ? course.date.slice(5).replace("-","/") : "";
+    $("#courseDate").textContent = d;
+    let km = 0;
+    for(let i=1;i<pending.length;i++){ const A=hasXY(cById(pending[i-1].id)), B=hasXY(cById(pending[i].id)); if(A&&B) km += kmDist(A,B); }
+    $("#cpCount").innerHTML = total
+      ? `<b>${done.length}</b> / ${total}곳 완료 · 남은 ${pending.length}곳${urg?` · <span style="color:var(--hard);font-weight:800">긴급 ${urg}</span>`:""}${km>=1?` <span style="color:var(--sub);font-weight:500">· 남은 거리 약 ${Math.round(km)}km</span>`:""}`
+      : "아직 오늘 코스가 없어요";
+    $("#cpBar").style.width = total ? Math.round(done.length/total*100)+"%" : "0%";
+    updateBadge();
+    if(!total){
+      $("#courseList").innerHTML = `<div class="empty" style="padding:36px 20px">거래처 탭에서 ☑ 체크하고<br><b>1차 / 2차로 코스 추가</b>를 누르세요.<br><button class="btn p" id="goClients" style="max-width:260px;margin:16px auto 0">🏢 거래처에서 고르기</button></div>`;
+      $("#goClients").onclick = ()=>go("clients");
+      renderNextBar(); return;
     }
     const after = pending[1] ? cById(pending[1].id) : null;
+    let html = "";
     const warnN = pending.filter(st=>closedWarn(cById(st.id), sRound(st))).length;
-    let html = warnN ? `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700">⛔ 휴진 시간과 겹치는 곳이 ${warnN}곳 있어요 · 빨간 표시 확인 (1차=오전, 2차=오후)</div>` : "";
+    if(warnN) html += `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700;margin:0">⛔ 휴진 시간과 겹치는 곳 ${warnN}곳 (1차=오전, 2차=오후)</div>`;
     const overN = pending.filter(st=>{ const i=dueInfo(st); return i && i.lvl==="over"; }).length;
     const hotN = pending.filter(st=>{ const i=dueInfo(st); return i && i.lvl==="hot"; }).length;
-    if(overN||hotN) html += `<div class="note" style="background:var(--hard);color:#fff;font-weight:700">⏰ ${overN?`마감 지난 곳 ${overN}곳`:""}${overN&&hotN?" · ":""}${hotN?`30분 안에 마감 ${hotN}곳`:""}</div>`;
-    let lastHead = "";
-    if(!courseOpen){
-      // 접힌 상태: 경고 + 다음 목적지 카드만
-      if(pending.length) html += stopHtml(pending[0], 0, true, after);
-      else html += `<div class="empty" style="padding:14px">🎉 오늘 코스를 모두 완료했어요!</div>`;
-      if(pending.length>1) html += `<button class="act" style="width:100%;margin-top:10px;padding:14px" id="cpMore">다음 ${pending.length-1}곳 더 보기 · ${esc(pending.slice(1,3).map(x=>{const cc=cById(x.id);return cc?shortName(cc):""}).join(", "))}${pending.length>3?" …":""}</button>`;
-      $("#courseList").innerHTML = html;
-      const m = $("#cpMore"); if(m) m.onclick = ()=>{ courseOpen = true; renderCourse(); };
-      return;
+    if(overN||hotN) html += `<div class="note" style="background:var(--hard);color:#fff;font-weight:700;margin:0">⏰ ${overN?`마감 지난 곳 ${overN}곳`:""}${overN&&hotN?" · ":""}${hotN?`30분 안에 마감 ${hotN}곳`:""}</div>`;
+    if(pending.length) html += stopHtml(pending[0], 0, true, after);
+    else html += `<div class="card" style="text-align:center;padding:28px"><div style="font-size:34px">🎉</div><b style="font-size:18px">오늘 코스 끝!</b><div class="meta" style="margin-top:4px">${done.length}곳 모두 완료했어요</div></div>`;
+    if(pending.length>1){
+      html += `<div class="sub-t">이후 코스 ${pending.length-1}곳 <span class="meta" style="font-weight:500">· 눌러서 순서·긴급 조정</span></div><div class="tl">`;
+      for(let i=1;i<pending.length;i++){
+        const st = pending[i], c = cById(st.id); if(!c) continue;
+        const A = hasXY(cById(pending[i-1].id)), B = hasXY(c);
+        if(A&&B) html += `<div class="tl-gap">↓ ${fmtDist(kmDist(A,B))}</div>`;
+        const pk = PARK[c.parking||"unk"], w = closedWarn(c, sRound(st));
+        html += `<div class="tl-row" data-menu="${esc(st.id)}">
+          <div class="tl-num ${st.urgent?"urgent":""}">${st.urgent?"!":i+1}</div>
+          <div class="tl-body"><div class="tl-name">${esc(c.name)}</div>
+            <div class="tl-meta"><span class="rtag ${sRound(st)==="2"?"r2":""}">${sRound(st)}차</span><span class="pk-dot b-${pk.cls}"></span>${esc(area(c.address)||"")} · 주차 ${pk.short}${w?` · <span style="color:var(--hard)">⛔ ${esc(w)}</span>`:""}${dueBadge(st)?" "+dueBadge(st):""}</div></div>
+          <span class="tl-more">⋯</span></div>`;
+      }
+      html += `</div>`;
     }
-    pending.forEach((st,i)=>{
-      const head = st.urgent ? "🚨 긴급" : sRound(st)+"차";
-      if(head!==lastHead){ html += `<div class="sub-t">${head==="🚨 긴급"?head:`<span class="tag cat">${head}</span>`} · ${pending.filter(x=>(x.urgent?"🚨 긴급":sRound(x)+"차")===head).length}곳</div>`; lastHead = head; }
-      html += stopHtml(st, i, i===0, i===0?after:null);
-    });
-    if(!pending.length) html += `<div class="empty" style="padding:24px">🎉 오늘 코스를 모두 완료했어요!</div>`;
-    if(done.length) html += `<div class="sub-t">완료 ${done.length}곳</div>` + done.map(s=>stopHtml(s)).join("");
+    if(done.length){
+      html += `<button class="donefold" id="doneFold">✅ 완료 ${done.length}곳 ${doneOpen?"접기 ▲":"보기 ▼"}</button>`;
+      if(doneOpen) html += `<div class="tl">` + done.map(st=>{ const c = cById(st.id);
+        return `<div class="tl-row" style="opacity:.6;cursor:default"><div class="tl-num">✓</div><div class="tl-body"><div class="tl-name" style="text-decoration:line-through">${esc(c?c.name:"삭제된 거래처")}</div><div class="tl-meta">${esc(st.doneAt||"")} 완료</div></div>
+          <button class="act" style="flex:none;padding:8px 12px" data-undo="${esc(st.id)}">되돌리기</button></div>`; }).join("") + `</div>`;
+    }
     $("#courseList").innerHTML = html;
+    const df = $("#doneFold"); if(df) df.onclick = ()=>{ doneOpen = !doneOpen; renderCourse(); };
+    renderNextBar();
+  }
+  // 거래처 탭 하단: 다음 목적지 고정 바
+  function renderNextBar(){
+    const el = $("#nextBar"); if(!el) return;
+    const p = course.stops.filter(s=>!s.done), c = p[0] ? cById(p[0].id) : null;
+    if(view!=="clients" || !c || pickSel.size){ el.hidden = true; return; }
+    el.hidden = false;
+    { const nv = document.querySelector("nav.bottom"); if(nv) el.style.bottom = (nv.offsetHeight||70)+"px"; }
+    el.innerHTML = `<div class="in"><div class="t" id="nbGo"><small>다음 목적지 · 남은 ${p.length}곳 ›</small><b>${esc(c.name)}</b></div>
+      <a href="${esc(navHref(c))}"${navAttr}>🧭 길찾기</a></div>`;
+    $("#nbGo").onclick = ()=>go("course");
+  }
+  // 코스 거래처 눌렀을 때 조작 메뉴
+  function stopSheet(id){
+    const p = course.stops.filter(x=>!x.done), st = p.find(x=>x.id===id), c = cById(id);
+    if(!st || !c) return;
+    const i = p.indexOf(st), r = sRound(st);
+    openSheet(`<h2>${esc(c.name)}</h2><p class="hint" style="margin:2px 0 0">${i===0?"다음 목적지":`${i+1}번째`} · ${r}차 · ${esc(c.address)}</p>
+      <div id="stopMenu">
+        <div class="menu-grid">
+          <a class="btn p" style="margin:0;grid-column:1/-1" href="${esc(navHref(c))}"${navAttr}>🧭 지금 여기로 길찾기</a>
+          ${i>0?`<button data-first="${esc(id)}">⏫ 맨 앞으로</button>`:""}
+          <button data-up="${esc(id)}" ${i===0?"disabled style='opacity:.4'":""}>▲ 위로</button>
+          <button data-down="${esc(id)}" ${i===p.length-1?"disabled style='opacity:.4'":""}>▼ 아래로</button>
+          <button data-rnd="${esc(id)}">⇄ ${r==="1"?"2차로":"1차로"} 옮기기</button>
+          <button data-urg="${esc(id)}" style="color:var(--hard)">🚨 ${st.urgent?"긴급 해제·마감":"긴급 · 마감"}</button>
+          <button data-open="${esc(id)}">📄 거래처 상세</button>
+          <button class="ok" data-done="${esc(id)}">✅ 완료</button>
+          <button class="del" data-x="${esc(id)}">✕ 코스에서 빼기</button>
+        </div>
+      </div>
+      <button class="btn g" id="smClose">닫기</button>`);
+    $("#stopMenu").onclick = e=>{ const b = e.target.closest("button[data-first],button[data-up],button[data-down],button[data-rnd],button[data-urg],button[data-open],button[data-done],button[data-x]");
+      if(!b || b.disabled) return; closeSheet(); courseAct(b); };
+    $("#smClose").onclick = closeSheet;
   }
   $("#courseList").addEventListener("click", e=>{
-    const b = e.target.closest("[data-rnd],[data-up],[data-down],[data-urg],[data-x],[data-done],[data-undo],[data-open]");
-    if(!b) return;
+    const b = e.target.closest("[data-rnd],[data-up],[data-down],[data-urg],[data-x],[data-done],[data-undo],[data-open],[data-menu],[data-first]");
+    if(b) courseAct(b);
+  });
+  function courseAct(b){
     const d = b.dataset;
+    if(d.menu){ stopSheet(d.menu); return; }
     if(d.open){ detail(d.open); return; }
+    if(d.first){ reorderPending(p=>{ const i=p.findIndex(s=>s.id===d.first); if(i>0){ const [x]=p.splice(i,1); p.unshift(x); } }); toast("맨 앞으로 옮겼어요"); return; }
     if(d.up||d.down){
       const id=d.up||d.down;
       reorderPending(p=>{ const i=p.findIndex(s=>s.id===id); const j=d.up?i-1:i+1; if(i<0||j<0||j>=p.length) return; [p[i],p[j]]=[p[j],p[i]]; });
@@ -1876,7 +1973,7 @@
       const pending = course.stops.filter(x=>!x.done && x!==s), done = course.stops.filter(x=>x.done);
       course.stops = pending.concat([s], done); saveCourse();
     }
-  });
+  }
   function markDone(id){
       const s = course.stops.find(s=>s.id===id); if(!s || s.done) return;
       s.done=true; s.urgent=false; s.doneAt=hm();
@@ -1944,6 +2041,7 @@
   }
   $("#cHist").onclick = histSheet;
   $("#btnWho").onclick = personSheet;
+  $("#btnWho2").onclick = personSheet;
   $("#cpToggle").onclick = ()=>{ courseOpen = !courseOpen; renderCourse(); };
   $("#cReset").onclick = ()=>{
     openSheet(`<h2>새 코스로 시작할까요?</h2><p class="hint">지금 코스 목록(완료 기록 포함)이 비워져요. 거래처 정보는 그대로예요.</p>
@@ -2003,9 +2101,13 @@
 
   // ---------- nav & events ----------
   function go(v){
-    view = "clients";
-    if(v==="course"){ courseOpen = true; renderCourse(); $("#cPanel").scrollIntoView({behavior:"smooth"}); }
-    else render();
+    view = v==="course" ? "course" : "clients";
+    $("#viewClients").hidden = view!=="clients";
+    $("#viewCourse").hidden = view!=="course";
+    $("#navClients").classList.toggle("on", view==="clients");
+    $("#navCourse").classList.toggle("on", view==="course");
+    if(view==="clients") render(); else renderCourse();
+    renderNextBar(); window.scrollTo(0,0);
   }
   $("#navClients").onclick = ()=>go("clients");
   $("#navCourse").onclick = ()=>go("course");
@@ -2035,9 +2137,10 @@
   $("#btnFilter").onclick = ()=>{ const fb = $("#filterBox"); fb.hidden = !fb.hidden; };
 
   init();
+  go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.16";
+  const APP_VER = "2026-11-23.17";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

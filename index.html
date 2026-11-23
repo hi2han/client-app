@@ -696,6 +696,16 @@
     if(!l.length && !c.publicParkingNote) return "";
     return `<div class="note" data-open="${esc(c.id)}" style="background:var(--blue-soft)">🅿️ 공영: ${l.length?esc(l.map(p=>p.name).join(", ")):"근처 공영주차장 없음 (상세 참고)"}</div>`;
   }
+  // 코스 카드용: 공영주차장마다 바로 길찾기 버튼
+  function pubInline(c){
+    const l = pubList(c);
+    if(!l.length) return c.publicParkingNote ? `<div class="note" style="background:var(--blue-soft)">🅿️ 공영: 근처 공영주차장 없음 · ${esc(c.publicParkingNote.split(/[.→]/)[0])}</div>` : "";
+    return `<div class="note" style="background:var(--blue-soft)"><b>🅿️ 근처 공영주차장</b>
+      ${l.map(p=>{ const q = (p.address||"")+" "+p.name;
+        const href = IS_PC ? N(q) : "nmap://search?query="+enc(q)+"&appname="+APPN;
+        return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${p.note?`<div class="meta">${esc(p.note)}</div>`:""}</div>
+          <a class="act primary" style="flex:none;padding:7px 10px" href="${esc(href)}"${IS_PC?' target="_blank" rel="noopener"':""}>🧭 가기</a></div>`; }).join("")}</div>`;
+  }
   function pubSection(c){
     const l = pubList(c);
     if(!l.length && !c.publicParkingNote) return "";
@@ -1593,6 +1603,7 @@
       </div>
       ${tagsHtml(c, sRound(s))}
       ${info?`<div class="note">${esc(info)}</div>`:""}
+      ${isNext ? pubInline(c) : pubSummary(c)}
       ${isNext?`<a class="btn p navgo" href="${esc(navHref(c))}"${navAttr}>${NAV_LABEL}</a>
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
           <a class="act" href="${esc(L.place(c))}" target="_blank" rel="noopener">🌐 웹 지도</a>
@@ -1830,7 +1841,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.9";
+  const APP_VER = "2026-11-23.10";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

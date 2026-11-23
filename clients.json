@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23 10:30",
+ "updated": "2026-11-23 10:40",
  "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
  "clients": [
   {
@@ -165,6 +165,25 @@
     }
    ],
    "publicParkingNote": "같은 길(다산중앙로123번길 7-14)에 민영 '투루파킹 다산퍼스트타워점' 191면(자주식, 1시간 2,500원)도 있음"
+  },
+  {
+   "id": "w-noksaek-yakpum",
+   "name": "녹색약품",
+   "category": "wholesale",
+   "dept": "",
+   "address": "서울특별시 금천구 두산로3길 12",
+   "addressDetail": "1층",
+   "phone": "02-831-3515",
+   "parking": "easy",
+   "building": "yes",
+   "freeTime": "",
+   "enforce": [],
+   "parkingSpot": "건물 주차장",
+   "parkingNote": "건물주차",
+   "lat": 37.4712479,
+   "lng": 126.889346,
+   "publicParking": [],
+   "publicParkingNote": "걸어갈 만한 거리에서 확인된 공영주차장 없음 → 건물 주차장 이용. 필요하면 '🅿️ 주차장' 버튼으로 주변 검색."
   }
  ]
 }

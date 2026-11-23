@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23 09:55",
+ "updated": "2026-11-23 10:00",
  "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
  "clients": [
   {
@@ -52,6 +52,23 @@
    "parkingNote": "주차장 여유",
    "lat": 37.5966483,
    "lng": 127.0881738
+  },
+  {
+   "id": "h-seoulsup-fm",
+   "name": "서울숲가정의학과의원",
+   "category": "hospital",
+   "dept": "가정의학과",
+   "address": "서울특별시 성동구 장터길 34",
+   "addressDetail": "3층 301호 (남지빌딩)",
+   "phone": "02-2295-9915",
+   "parking": "easy",
+   "building": "yes",
+   "freeTime": "",
+   "enforce": [],
+   "parkingSpot": "건물 주차장",
+   "parkingNote": "주차공간 여유 · ⚠️ 수요일 오후 휴진",
+   "lat": 37.54816,
+   "lng": 127.019618
   }
  ]
 }

@@ -233,6 +233,25 @@
         }
       ],
       "publicParkingNote": ""
+    },
+    {
+      "id": "w-ms-pharm",
+      "name": "엠에스팜",
+      "category": "wholesale",
+      "dept": "",
+      "address": "서울특별시 광진구 자양번영로 42",
+      "addressDetail": "공주빌딩 3층",
+      "phone": "02-457-5112",
+      "parking": "hard",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 협소",
+      "lat": "",
+      "lng": "",
+      "publicParking": [],
+      "publicParkingNote": "좌표·주변 공영주차장 확인 중 (네이버지도 링크 주시면 반영)"
     }
   ],
   "depot": {

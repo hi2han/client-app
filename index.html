@@ -1504,6 +1504,21 @@
   $("#btnMemo").onclick = memoSheet;
 
   init();
+
+  // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
+  const APP_VER = "2026-11-23.3";
+  async function checkVersion(){
+    try{
+      const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});
+      if(!r.ok) return;
+      const v = (await r.text()).trim();
+      if(v && v!==APP_VER && new URLSearchParams(location.search).get("v")!==v){
+        location.replace(location.pathname+"?v="+encodeURIComponent(v)+location.hash);
+      }
+    }catch(e){}
+  }
+  checkVersion();
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") checkVersion(); });
 })();
 </script>
 </body>

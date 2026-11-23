@@ -350,8 +350,8 @@
 <div class="selbar" id="selBar"><div class="in">
   <div style="display:flex;justify-content:space-between;align-items:center"><b id="selCount">0곳 선택</b><span class="hint" id="selNames" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%"></span></div>
   <div class="row2">
-    <button id="selR1" style="background:var(--brand);color:#fff">1차로 코스 추가</button>
-    <button id="selR2" style="background:var(--blue);color:#fff">2차로 코스 추가</button>
+    <button id="selR1" style="background:var(--brand);color:#fff">＋ 코스에 추가</button>
+    <button id="selR2" style="display:none"></button>
     <button id="selClear" style="background:var(--unk-soft);color:var(--ink)">해제</button>
   </div>
 </div></div>
@@ -933,7 +933,7 @@
     addStops(ids.filter(id=>!already.includes(id)), round);
     { const g = originXY(); if(g) doSort(g, curOrigin().name||"출발지", true); }   // 추가하면 자동으로 배송루트 정리
     pickSel.clear(); updateSelBar(); render();
-    toast(`✓ ${ids.length}곳 → ${round}차 코스 · 코스 보기 ›`);
+    toast(`✓ ${ids.length}곳 코스에 추가 · 코스 보기 ›`);
     { const t=$("#toast"); t.style.cursor="pointer"; t.onclick=()=>{ t.classList.remove("show"); go("course"); };
       clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3500); }
   }
@@ -957,7 +957,7 @@
       return `<div class="crow ${sel?"picked":""}">
         <input type="checkbox" class="pickbox" data-pick="${esc(c.id)}" ${sel?"checked":""} aria-label="선택">
         <div class="cmain" data-open="${esc(c.id)}">
-          <div class="cname">${hl(c.name, query)}${cs?` <span class="incourse">${sRound(cs)}차</span>`:""}</div>
+          <div class="cname">${hl(c.name, query)}${cs?` <span class="incourse">코스</span>`:""}</div>
           <div class="cmeta"><span class="pk-dot b-${pk.cls}"></span>${esc(CATS[catOf(c)])} · ${esc(area(c.address)||"")} · 주차 ${pk.short}${cl?` · <span style="color:var(--hard)">휴진 ${esc(cl)}</span>`:""}</div>
         </div>
         ${c.phone?`<a class="cbtn" href="${esc(telHref(c.phone))}" aria-label="전화">📞</a>`:""}
@@ -1052,7 +1052,7 @@
       </div>
       <div class="sec"><div class="sec-t">⛔ 휴진 (누를 때마다: 없음 → 오후 → 오전 → 종일)</div>
         <div class="tgl" id="tClosed">${[1,2,3,4,5,6,0].map(d=>{ const v=closedMap(editing)[d]; return `<button data-d="${d}" class="${v?"on":""}">${DAYS[d]}${v?" "+PART[v]:""}</button>`; }).join("")}</div>
-        <div class="hint" style="margin-top:6px">배차할 때 1차=오전, 2차=오후로 보고 휴진이면 경고해요.</div>
+        <div class="hint" style="margin-top:6px">오늘 휴진인 곳이 코스에 있으면 경고해요.</div>
       </div>
       <div class="sec"><div class="sec-t">구분</div>
         ${segHtml("sCat", [["hospital","병원"],["wholesale","도매상"],["etc","기타"]], editing.category, "c3")}
@@ -1714,7 +1714,7 @@
     else { addStops([id]); toast("코스에 추가했어요 (맨 뒤)"); return; }
     saveCourse();
   }
-  const sRound = st => String(st && st.round || "1");
+  const sRound = st => "1";   // 1차/2차 구분 사용 안 함 (나중에 필요하면 다시 켜기)
   function orderPending(p){
     const rank = st => st.urgent ? 0 : (sRound(st)==="1" ? 1 : 2);
     const dueKey = st => st.urgent && st.due ? st.due : "99:99";   // 긴급끼리는 마감 빠른 순
@@ -1785,10 +1785,10 @@
     const dates = Object.keys(h).filter(d=>d!==today() && Array.isArray(h[d]) && h[d].length).sort().reverse();
     const wd = d => DAYS[new Date(d+"T00:00:00").getDay()];
     openSheet(`<h2>📅 지난 코스 불러오기</h2>
-      <p class="hint">고른 날 다녀온 곳을 1차/2차 그대로 오늘 코스에 넣어요. 이미 있는 곳은 건너뛰어요.</p>
+      <p class="hint">고른 날 다녀온 곳을 오늘 코스에 넣어요. 이미 있는 곳은 건너뛰어요.</p>
       ${dates.length ? dates.map(d=>{ const its=h[d].filter(x=>cById(x.id)); const r1=its.filter(x=>x.round!=="2").length, r2=its.length-r1;
         return `<div class="pick" style="cursor:default"><div style="flex:1;min-width:0"><b>${d.slice(5).replace("-","/")} (${wd(d)})</b>${wd(d)===wd(today())?' <span class="tag cat">같은 요일</span>':""}
-          <div class="meta">${its.length}곳 · 1차 ${r1} · 2차 ${r2}<br>${esc(its.slice(0,4).map(x=>shortName(cById(x.id))).join(", "))}${its.length>4?" 외":""}</div></div>
+          <div class="meta">${its.length}곳<br>${esc(its.slice(0,4).map(x=>shortName(cById(x.id))).join(", "))}${its.length>4?" 외":""}</div></div>
           <button class="act primary" style="flex:none;padding:8px 12px" data-load="${d}">불러오기</button></div>`; }).join("")
         : `<div class="empty" style="padding:20px">아직 지난 코스 기록이 없어요.<br><span class="hint">오늘부터 다닌 코스가 날짜별로 쌓여요 (최근 30일).</span></div>`}
       <button class="btn g" id="hsClose">닫기</button>`);
@@ -1818,8 +1818,7 @@
         <div class="name">${esc(c.name)}</div><div class="meta">${esc(area(c.address))} · 완료 ${esc(s.doneAt||"")}</div></div>
         <button class="act" style="flex:none;padding:6px 10px" data-undo="${esc(s.id)}">되돌리기</button></div></div>`;
     }
-    const ctl = `<div class="ctl" style="grid-template-columns:${isNext?"repeat(5,1fr)":"repeat(6,1fr)"}">
-        <button data-rnd="${esc(s.id)}" style="color:var(--brand);font-weight:800">${sRound(s)}차 ⇄</button>
+    const ctl = `<div class="ctl" style="grid-template-columns:${isNext?"repeat(4,1fr)":"repeat(5,1fr)"}">
         <button data-up="${esc(s.id)}" aria-label="위로">▲</button>
         <button data-down="${esc(s.id)}" aria-label="아래로">▼</button>
         <button class="urg ${s.urgent||s.due?"on":""}" data-urg="${esc(s.id)}">🚨 ${s.urgent?"긴급":s.due?"마감":"우선"}</button>
@@ -1835,7 +1834,7 @@
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
       </div>`;
     if(!isNext){
-      return `<div class="card">${head}${tagsHtml(c, sRound(s))}${ctl}</div>`;
+      return `<div class="card">${head}${tagsHtml(c)}${ctl}</div>`;
     }
     const fin = after
       ? `<a class="fin" href="${esc(navHref(after))}"${navAttr} data-done="${esc(s.id)}" data-nav="1">✅ 완료<small>다음 길안내</small></a>`
@@ -1843,7 +1842,7 @@
     return `<div class="card next">
       <div class="next-label">다음 목적지</div>
       ${head}
-      ${tagsHtml(c, sRound(s))}
+      ${tagsHtml(c)}
       ${info?`<div class="note">${esc(info)}</div>`:""}
       ${pubInline(c)}
       <div class="bigacts">
@@ -1851,7 +1850,7 @@
         ${c.phone?`<a href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span style="display:flex;align-items:center;justify-content:center;border-radius:16px;background:var(--fill);opacity:.4;font-weight:800">📞 없음</span>`}
         ${fin}
       </div>
-      <button class="act" style="width:100%;margin-top:8px;padding:13px" data-menu="${esc(s.id)}">⋯ 순서 · 1차/2차 · 긴급 · 빼기</button>
+      <button class="act" style="width:100%;margin-top:8px;padding:13px" data-menu="${esc(s.id)}">⋯ 순서 · 긴급 · 빼기</button>
     </div>`;
   }
   let courseWho = "me";   // "me" = 내 코스, 그 외 = 직원 이름 (배차 기준 코스 보기)
@@ -1914,14 +1913,14 @@
     $("#cpBar").style.width = total ? Math.round(done.length/total*100)+"%" : "0%";
     updateBadge();
     if(!total){
-      $("#courseList").innerHTML = `<div class="empty" style="padding:36px 20px">거래처 탭에서 ☑ 체크하고<br><b>1차 / 2차로 코스 추가</b>를 누르세요.<br><button class="btn p" id="goClients" style="max-width:260px;margin:16px auto 0">🏢 거래처에서 고르기</button></div>`;
+      $("#courseList").innerHTML = `<div class="empty" style="padding:36px 20px">거래처 탭에서 ☑ 체크하고<br><b>＋ 코스에 추가</b>를 누르세요.<br><button class="btn p" id="goClients" style="max-width:260px;margin:16px auto 0">🏢 거래처에서 고르기</button></div>`;
       $("#goClients").onclick = ()=>go("clients");
       renderNextBar(); return;
     }
     const after = pending[1] ? cById(pending[1].id) : null;
     let html = "";
-    const warnN = pending.filter(st=>closedWarn(cById(st.id), sRound(st))).length;
-    if(warnN) html += `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700;margin:0">⛔ 휴진 시간과 겹치는 곳 ${warnN}곳 (1차=오전, 2차=오후)</div>`;
+    const warnN = pending.filter(st=>closedWarn(cById(st.id))).length;
+    if(warnN) html += `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700;margin:0">⛔ 오늘 휴진(전체·반일)인 곳 ${warnN}곳 · 시간 확인하세요</div>`;
     const overN = pending.filter(st=>{ const i=dueInfo(st); return i && i.lvl==="over"; }).length;
     const hotN = pending.filter(st=>{ const i=dueInfo(st); return i && i.lvl==="hot"; }).length;
     if(overN||hotN) html += `<div class="note" style="background:var(--hard);color:#fff;font-weight:700;margin:0">⏰ ${overN?`마감 지난 곳 ${overN}곳`:""}${overN&&hotN?" · ":""}${hotN?`30분 안에 마감 ${hotN}곳`:""}</div>`;
@@ -1933,11 +1932,11 @@
         const st = pending[i], c = cById(st.id); if(!c) continue;
         const A = sortXY(cById(pending[i-1].id)), B = sortXY(c);
         if(A&&B) html += `<div class="tl-gap">↓ ${fmtDist(kmDist(A,B))}</div>`;
-        const pk = PARK[c.parking||"unk"], w = closedWarn(c, sRound(st));
+        const pk = PARK[c.parking||"unk"], w = closedWarn(c);
         html += `<div class="tl-row" data-menu="${esc(st.id)}">
           <div class="tl-num ${st.urgent?"urgent":""}">${st.urgent?"!":i+1}</div>
           <div class="tl-body"><div class="tl-name">${esc(c.name)}</div>
-            <div class="tl-meta"><span class="rtag ${sRound(st)==="2"?"r2":""}">${sRound(st)}차</span><span class="pk-dot b-${pk.cls}"></span>${esc(area(c.address)||"")} · 주차 ${pk.short}${w?` · <span style="color:var(--hard)">⛔ ${esc(w)}</span>`:""}${dueBadge(st)?" "+dueBadge(st):""}</div></div>
+            <div class="tl-meta"><span class="pk-dot b-${pk.cls}"></span>${esc(area(c.address)||"")} · 주차 ${pk.short}${w?` · <span style="color:var(--hard)">⛔ ${esc(w)}</span>`:""}${dueBadge(st)?" "+dueBadge(st):""}</div></div>
           <span class="tl-more">⋯</span></div>`;
       }
       html += `</div>`;
@@ -1968,14 +1967,13 @@
     const p = course.stops.filter(x=>!x.done), st = p.find(x=>x.id===id), c = cById(id);
     if(!st || !c) return;
     const i = p.indexOf(st), r = sRound(st);
-    openSheet(`<h2>${esc(c.name)}</h2><p class="hint" style="margin:2px 0 0">${i===0?"다음 목적지":`${i+1}번째`} · ${r}차 · ${esc(c.address)}</p>
+    openSheet(`<h2>${esc(c.name)}</h2><p class="hint" style="margin:2px 0 0">${i===0?"다음 목적지":`${i+1}번째`} · ${esc(c.address)}</p>
       <div id="stopMenu">
         <div class="menu-grid">
           <a class="btn p" style="margin:0;grid-column:1/-1" href="${esc(navHref(c))}"${navAttr}>🧭 지금 여기로 길찾기</a>
           ${i>0?`<button data-first="${esc(id)}">⏫ 맨 앞으로</button>`:""}
           <button data-up="${esc(id)}" ${i===0?"disabled style='opacity:.4'":""}>▲ 위로</button>
           <button data-down="${esc(id)}" ${i===p.length-1?"disabled style='opacity:.4'":""}>▼ 아래로</button>
-          <button data-rnd="${esc(id)}">⇄ ${r==="1"?"2차로":"1차로"} 옮기기</button>
           <button data-urg="${esc(id)}" style="color:var(--hard)">🚨 ${st.urgent?"긴급 해제·마감":"긴급 · 마감"}</button>
           <button data-open="${esc(id)}">📄 거래처 상세</button>
           <button class="ok" data-done="${esc(id)}">✅ 완료</button>
@@ -2073,7 +2071,7 @@
   function originSheet(){
     const o = curOrigin(), admin = isAdmin(), mine = !!settings.origin;
     openSheet(`<h2>🏁 출발지 설정</h2>
-      <p class="hint">동선순 정렬은 출발지에서 가장 가까운 곳부터 순서를 잡아요. 1차·2차 모두 출발지 기준이에요.</p>
+      <p class="hint">배송루트 정리는 출발지에서 가장 가까운 곳부터 순서를 잡아요.</p>
       <label class="f">이름</label><input class="in" id="oName" value="${esc(o.name||"")}">
       <label class="f">주소</label><input class="in" id="oAddr" value="${esc(o.address||"")}">
       <label class="f">좌표 (위도, 경도)</label><input class="in" id="oXY" placeholder="예: 37.5412, 127.2054" value="${o.lat&&o.lng?esc(o.lat+", "+o.lng):""}">
@@ -2195,7 +2193,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-24.1";
+  const APP_VER = "2026-11-24.2";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

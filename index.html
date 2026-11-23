@@ -32,7 +32,7 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px}
   button,input,select,textarea{font:inherit;color:inherit}
-  .app{max-width:640px;margin:0 auto;min-height:100vh;padding-bottom:calc(140px + env(safe-area-inset-bottom))}
+  .app{max-width:640px;margin:0 auto;min-height:100vh;padding-bottom:calc(150px + env(safe-area-inset-bottom))}
   header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 16px 6px}
   .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
   h1{font-size:19px;margin:0;font-weight:700;letter-spacing:-.3px}
@@ -68,8 +68,8 @@
   .act.primary{background:var(--brand-soft);color:var(--brand);border-color:transparent}
   .act.in-course{background:var(--blue-soft);color:var(--blue);border-color:transparent}
   .empty{text-align:center;color:var(--sub);padding:50px 20px;line-height:1.7}
-  .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));display:flex;gap:8px;z-index:6}
-  .fab button{border:0;border-radius:999px;padding:12px 17px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap}
+  .fab{position:fixed;right:max(12px, calc(50% - 308px));bottom:calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:6}
+  .fab button{border:0;border-radius:999px;padding:10px 14px;font-size:13.5px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.18);cursor:pointer;white-space:nowrap}
   .fab .up{background:var(--brand);color:#fff} .fab .add{background:var(--card);color:var(--ink)}
   nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:7;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
   nav.bottom .in{max-width:640px;width:100%;display:grid;grid-template-columns:1fr 1fr}
@@ -146,6 +146,23 @@
   .upd{font-size:11.5px;color:var(--sub);margin-top:8px}
   .tel{color:var(--blue);text-decoration:none}
   mark{background:#fff1a8;color:inherit;border-radius:3px}
+  .cpanel{margin:8px 12px 4px;background:var(--card);border:2px solid var(--brand);border-radius:16px;padding:12px}
+  .cp-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .cp-title{font-weight:700;font-size:15.5px}
+  .cp-title small{font-weight:500;color:var(--sub);font-size:12.5px;margin-left:4px}
+  .cp-toggle{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .cpanel .list{padding:8px 0 0}
+  .cpanel .card{border-color:var(--line)}
+  .cpanel .card.next{border-color:var(--brand)}
+  .cpanel .c-head{padding:8px 0 0}
+  .pickbox{width:24px;height:24px;flex:none;accent-color:var(--brand);margin:2px 2px 0 0}
+  .card.picked{border-color:var(--brand);background:var(--brand-soft)}
+  .incourse{font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--brand);color:#fff}
+  .selbar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(0,0,0,.12);padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:none}
+  .selbar.show{display:block}
+  .selbar .in{max-width:640px;margin:0 auto}
+  .selbar .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
+  .selbar button{border:0;border-radius:12px;padding:13px 10px;font-weight:700;cursor:pointer}
   @media (prefers-color-scheme: dark){ mark{background:#5a4b00} }
 </style>
 </head>
@@ -170,6 +187,23 @@
       <div class="chips" id="parkChips"></div>
       <div class="chips" id="areaChips"></div>
     </header>
+    <div class="cpanel" id="cPanel">
+      <div class="cp-head">
+        <div class="cp-title">🚚 내 오늘 코스<small id="courseDate"></small><small id="cpCount"></small></div>
+        <button class="cp-toggle" id="cpToggle">펼치기 ▼</button>
+      </div>
+      <div class="c-head" id="cpBody" style="display:none">
+        <div class="chips" id="courseWho" style="display:none"></div>
+        <div class="c-stat" id="cStat"></div>
+        <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
+        <div class="c-tools" id="cTools" style="grid-template-columns:1fr 1fr 1fr">
+          <button class="act" id="cHist">📅 지난 코스</button>
+          <button class="act" id="cSort">📍 동선순 정렬</button>
+          <button class="act" id="cReset">↺ 새 코스</button>
+        </div>
+      </div>
+      <div class="list" id="courseList"></div>
+    </div>
     <div class="count" id="count"></div>
     <div class="list" id="list"></div>
   </section>
@@ -186,39 +220,25 @@
     <div class="list" id="dpList"></div>
   </section>
 
-  <section id="viewCourse" hidden>
-    <header>
-      <div class="top">
-        <h1>오늘 배송 코스</h1>
-        <div class="sync"><span id="courseDate"></span></div>
-      </div>
-    </header>
-    <div class="c-head">
-      <div class="chips" id="courseWho" style="display:none;padding-top:0;margin-bottom:8px"></div>
-      <div class="c-stat" id="cStat">
-        <div><b id="stLeft">0</b><span>남은 곳</span></div>
-        <div><b id="stUrg">0</b><span>긴급</span></div>
-        <div><b id="stDone">0</b><span>완료</span></div>
-      </div>
-      <button class="btn p" id="cRoute" style="margin-top:10px">🧭 네이버지도로 전체 경로 보기</button>
-      <div class="c-tools" id="cTools" style="grid-template-columns:1fr 1fr">
-        <button class="act primary" id="cAdd">＋ 거래처 추가</button>
-        <button class="act" id="cHist">📅 지난 코스</button>
-        <button class="act" id="cSort">📍 동선순 정렬</button>
-        <button class="act" id="cReset">↺ 새 코스</button>
-      </div>
-    </div>
-    <div class="list" id="courseList"></div>
-  </section>
+  <section id="viewCourse" hidden></section>
 </div>
 
 <div class="fab" id="fab">
-  <button class="add" id="btnMemo">📝 메모장</button>
+  <button class="add" id="btnMemo">📝 메모</button>
   <button class="add" id="btnAdd" style="display:none">＋ 직접 추가</button>
   <button class="up" id="btnUp" style="display:none">엑셀 올리기</button>
 </div>
 
-<nav class="bottom"><div class="in">
+<div class="selbar" id="selBar"><div class="in">
+  <div style="display:flex;justify-content:space-between;align-items:center"><b id="selCount">0곳 선택</b><span class="hint" id="selNames" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%"></span></div>
+  <div class="row2">
+    <button id="selR1" style="background:var(--brand);color:#fff">1차로 코스 추가</button>
+    <button id="selR2" style="background:var(--blue);color:#fff">2차로 코스 추가</button>
+    <button id="selClear" style="background:var(--unk-soft);color:var(--ink)">해제</button>
+  </div>
+</div></div>
+
+<nav class="bottom" style="display:none"><div class="in">
   <button id="navClients" class="on"><b>🏥</b>거래처</button>
   <button id="navDispatch" style="display:none"><b>📋</b>배차</button>
   <button id="navCourse"><b>🚚</b><span>오늘 코스<span id="navBadge"></span></span></button>
@@ -598,6 +618,7 @@
   }
   function renderStaffChips(){
     const el = $("#staffChips"); if(!el) return;
+    el.style.display="none"; fStaff="all"; return;
     const vis = clients.filter(c=>!isHidden(c.id));
     if(!staffList.length){ el.style.display="none"; el.innerHTML=""; return; }
     const cnt = f => { const o=fStaff; fStaff=f; const n=vis.filter(staffOk).length; fStaff=o; return n; };
@@ -673,6 +694,25 @@
       ${c.publicParkingNote?`<div class="hint" style="margin-top:6px">${esc(c.publicParkingNote)}</div>`:""}
     </div>`;
   }
+  const pickSel = new Set();
+  function updateSelBar(){
+    const n = pickSel.size;
+    $("#selBar").classList.toggle("show", n>0);
+    $("#fab").style.display = n>0 ? "none" : "";
+    $("#selCount").textContent = `${n}곳 선택`;
+    $("#selNames").textContent = [...pickSel].map(id=>shortName(cById(id)||{})).join(", ");
+  }
+  function addPicked(round){
+    const ids = [...pickSel].filter(id=>cById(id));
+    if(!ids.length) return;
+    course.stops = course.stops.filter(st=>!(st.done && ids.includes(st.id)));
+    const already = ids.filter(id=>course.stops.some(st=>st.id===id && !st.done));
+    // 이미 코스에 있는 곳은 차수만 바꿈
+    already.forEach(id=>{ const st = course.stops.find(x=>x.id===id && !x.done); if(st) st.round = round; });
+    addStops(ids.filter(id=>!already.includes(id)), round);
+    pickSel.clear(); updateSelBar(); render();
+    toast(`${ids.length}곳 → ${round}차 코스`);
+  }
   function inCourse(id){ return course.stops.some(s=>s.id===id && !s.done); }
   function render(){
     renderChips();
@@ -689,10 +729,12 @@
       const pk = PARK[c.parking||"unk"];
       const note = [c.parkingSpot?("추천: "+c.parkingSpot):"", c.parkingNote||"", c.myNote?("📝 "+c.myNote):""].filter(Boolean).join(" · ");
       const ic = inCourse(c.id);
-      return `<div class="card">
-        <div class="card-h" data-open="${esc(c.id)}">
-          <div><div class="name">${hl(c.name, query)}</div>
-          <div class="meta"><span class="tag cat" style="padding:1px 6px">${CATS[catOf(c)]}</span> ${esc([c.dept,c.contact].filter(Boolean).join(" · "))}${(c.assignees||[]).length?` · 👤 ${esc(c.assignees.join(", "))}`:""}</div></div>
+      const cs = course.stops.find(st=>st.id===c.id && !st.done);
+      return `<div class="card ${pickSel.has(c.id)?"picked":""}">
+        <div class="card-h">
+          <input type="checkbox" class="pickbox" data-pick="${esc(c.id)}" ${pickSel.has(c.id)?"checked":""} aria-label="선택">
+          <div style="flex:1;min-width:0" data-open="${esc(c.id)}"><div class="name">${hl(c.name, query)} ${cs?`<span class="incourse">✓ 코스 ${sRound(cs)}차</span>`:""}</div>
+          <div class="meta"><span class="tag cat" style="padding:1px 6px">${CATS[catOf(c)]}</span> ${esc([c.dept,c.contact].filter(Boolean).join(" · "))}</div></div>
           <span class="badge b-${pk.cls}">주차 ${pk.short}</span>
         </div>
         <div class="addr" data-open="${esc(c.id)}">${esc(c.address)}${c.addressDetail?` <span style="color:var(--sub)">${esc(c.addressDetail)}</span>`:""}</div>
@@ -703,7 +745,7 @@
           ${c.phone?`<a class="act" href="${esc(telHref(c.phone))}">📞 전화</a>`:`<span class="act" style="opacity:.4">📞 없음</span>`}
           <a class="act" href="${esc(IS_PC?W.pin(c):L.place(c))}" target="_blank" rel="noopener">📍 위치</a>
           <a class="act primary" href="${esc(L.pub(c))}" target="_blank" rel="noopener">🅿️ 주차장</a>
-          <button class="act ${ic?"in-course":""}" data-course="${esc(c.id)}">${ic?"✓ 코스":"＋ 코스"}</button>
+          <button class="act ${ic?"in-course":""}" data-course="${esc(c.id)}">${ic?"코스 빼기":"＋ 1차"}</button>
         </div>
       </div>`;
     }).join("");
@@ -753,7 +795,7 @@
       <div class="sec">
         <div class="row"><span>주소</span><span>${esc(c.address)}${c.addressDetail?"<br>"+esc(c.addressDetail):""}</span></div>
         <div class="row"><span>연락처</span><span>${c.phone?`<a class="tel" href="${esc(telHref(c.phone))}">${esc(c.phone)}</a>`:"-"}</span></div>
-        <div class="row"><span>담당 직원</span><span>${(c.assignees||[]).length?esc(c.assignees.join(", ")):"미배정"}</span></div>
+
       </div>
       <button class="btn ${ic?"g":"b"}" id="dCourse">${ic?"✓ 오늘 코스에 있음 (빼기)":"🚚 오늘 코스에 추가"}</button>
       ${pubSection(c)}
@@ -779,7 +821,7 @@
       return;
     }
     openSheet(head + `
-      ${admin?`<div class="sec"><div class="sec-t">👥 담당 직원 (여러 명 가능)</div>${staffToggles("tStaff", editing.assignees)}</div>`:""}
+
       <div class="sec"><div class="sec-t">좌표 (네이버 경로 자동 입력에 필요)</div>
         <input class="in" id="dXY" inputmode="decimal" placeholder="위도, 경도  예) 37.5000, 127.0364" value="${hasXY(c)?esc(c.lat+", "+c.lng):""}">
         <div class="hint" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"⚠️ 좌표 없음 — 전체 경로 보내기에서 빠져요"}</div>
@@ -860,7 +902,7 @@
     openSheet(`<h2>${isNew?"거래처 추가":"정보 수정"}</h2>
       <label class="f">구분</label>
       ${segHtml("fCat", [["hospital","병원"],["wholesale","도매상"],["etc","기타"]], CATS[c.category]?c.category:catOf(c), "c3")}
-      ${isAdmin()?`<label class="f">담당 직원</label>${staffToggles("fStaffT", (c.assignees=Array.isArray(c.assignees)?c.assignees.slice():[]))}`:""}
+
       ${FIELDS.filter(f=>!["parkingNote","category","lat","lng","assignees"].includes(f.key)).map(f=>`<label class="f">${f.label}${f.req?" *":""}</label>
         <input class="in" id="f_${f.key}" value="${esc(c[f.key]||"")}" ${f.key==="phone"?'inputmode="tel"':""}>`).join("")}
       <label class="f">좌표 (위도, 경도) — 선택</label>
@@ -1578,23 +1620,37 @@
         </div></div>`;
     }).join("");
   }
+  let courseOpen = false;
   function renderCourse(){
     renderCourseWho();
     if(courseWho!=="me"){ renderStaffCourse(courseWho); return; }
     $("#cStat").innerHTML = `<div><b id="stLeft">0</b><span>남은 곳</span></div><div><b id="stUrg">0</b><span>긴급</span></div><div><b id="stDone">0</b><span>완료</span></div>`;
     $("#cTools").style.display = "";
+    $("#cpBody").style.display = courseOpen ? "" : "none";
+    $("#cpToggle").textContent = courseOpen ? "접기 ▲" : "펼치기 ▼";
+    { const pend = course.stops.filter(st=>!st.done), r1 = pend.filter(st=>sRound(st)==="1").length;
+      $("#cpCount").textContent = course.stops.length ? ` · 남은 ${pend.length} (1차 ${r1}/2차 ${pend.length-r1}) · 완료 ${course.stops.length-pend.length}` : ""; }
     const d = course.date ? course.date.slice(5).replace("-","/") : "";
     $("#courseDate").textContent = d ? d+" 코스" : "";
     const pending = course.stops.filter(s=>!s.done), done = course.stops.filter(s=>s.done);
     $("#stLeft").textContent = pending.length; $("#stUrg").textContent = pending.filter(s=>s.urgent).length; $("#stDone").textContent = done.length;
     if(!course.stops.length){
-      $("#courseList").innerHTML = `<div class="empty">오늘 코스가 비어 있어요.<br><b>＋ 거래처 추가</b>로 갈 곳을 고르거나<br>거래처 화면에서 <b>＋ 코스</b>를 눌러 넣어주세요.</div>`;
+      $("#courseList").innerHTML = `<div class="hint" style="padding:6px 2px 2px">아래 목록에서 거래처를 ☑ 체크하고 <b>1차 / 2차로 코스 추가</b>를 누르세요.${lsGet(LSH,null)?" 지난 코스는 펼치기 → 📅 지난 코스.":""}</div>`;
       return;
     }
     const after = pending[1] ? cById(pending[1].id) : null;
     const warnN = pending.filter(st=>closedWarn(cById(st.id), sRound(st))).length;
     let html = warnN ? `<div class="note" style="background:var(--hard-soft);color:var(--hard);font-weight:700">⛔ 휴진 시간과 겹치는 곳이 ${warnN}곳 있어요 · 빨간 표시 확인 (1차=오전, 2차=오후)</div>` : "";
     let lastHead = "";
+    if(!courseOpen){
+      // 접힌 상태: 경고 + 다음 목적지 카드만
+      if(pending.length) html += stopHtml(pending[0], 0, true, after);
+      else html += `<div class="empty" style="padding:14px">🎉 오늘 코스를 모두 완료했어요!</div>`;
+      if(pending.length>1) html += `<button class="act" style="width:100%;margin-top:8px" id="cpMore">나머지 ${pending.length-1}곳 · 코스 기능 펼치기 ▼</button>`;
+      $("#courseList").innerHTML = html;
+      const m = $("#cpMore"); if(m) m.onclick = ()=>{ courseOpen = true; renderCourse(); };
+      return;
+    }
     pending.forEach((st,i)=>{
       const head = st.urgent ? "🚨 긴급" : sRound(st)+"차";
       if(head!==lastHead){ html += `<div class="sub-t">${head==="🚨 긴급"?head:`<span class="tag cat">${head}</span>`} · ${pending.filter(x=>(x.urgent?"🚨 긴급":sRound(x)+"차")===head).length}곳</div>`; lastHead = head; }
@@ -1650,13 +1706,14 @@
     toast("1차·2차 안에서 가까운 순서로 정렬했어요 (맨 위 거래처 기준)");
   };
   $("#cHist").onclick = histSheet;
+  $("#cpToggle").onclick = ()=>{ courseOpen = !courseOpen; renderCourse(); };
   $("#cReset").onclick = ()=>{
     openSheet(`<h2>새 코스로 시작할까요?</h2><p class="hint">지금 코스 목록(완료 기록 포함)이 비워져요. 거래처 정보는 그대로예요.</p>
       <button class="btn p" id="rYes">새 코스 시작</button><button class="btn g" id="rNo">취소</button>`);
     $("#rYes").onclick = ()=>{ course = {date:today(), stops:[]}; saveCourse(); closeSheet(); toast("새 코스를 시작했어요"); };
     $("#rNo").onclick = closeSheet;
   };
-  $("#cAdd").onclick = pickSheet;
+  const cAddBtn = $("#cAdd"); if(cAddBtn) cAddBtn.onclick = pickSheet;
   $("#courseWho").addEventListener("click", e=>{ const b=e.target.closest("[data-who]"); if(b){ courseWho=b.dataset.who; renderCourse(); window.scrollTo(0,0); } });
   $("#cRoute").onclick = routeSheet;
   function routeSheet(){
@@ -1708,17 +1765,23 @@
 
   // ---------- nav & events ----------
   function go(v){
-    view = v;
-    $("#viewClients").hidden = v!=="clients"; $("#viewCourse").hidden = v!=="course"; $("#viewDispatch").hidden = v!=="dispatch";
-    $("#fab").style.display = v==="clients" ? "" : "none";
-    $("#navClients").classList.toggle("on", v==="clients"); $("#navCourse").classList.toggle("on", v==="course"); $("#navDispatch").classList.toggle("on", v==="dispatch");
-    if(v==="course") renderCourse(); else if(v==="dispatch"){ renderDispatch(); syncDispatch(false); } else render();
-    window.scrollTo(0,0);
+    view = "clients";
+    if(v==="course"){ courseOpen = true; renderCourse(); $("#cPanel").scrollIntoView({behavior:"smooth"}); }
+    else render();
   }
   $("#navClients").onclick = ()=>go("clients");
   $("#navCourse").onclick = ()=>go("course");
   $("#navDispatch").onclick = ()=>go("dispatch");
+  $("#list").addEventListener("change", e=>{
+    const cb = e.target.closest("[data-pick]"); if(!cb) return;
+    cb.checked ? pickSel.add(cb.dataset.pick) : pickSel.delete(cb.dataset.pick);
+    cb.closest(".card").classList.toggle("picked", cb.checked); updateSelBar();
+  });
+  $("#selR1").onclick = ()=>addPicked("1");
+  $("#selR2").onclick = ()=>addPicked("2");
+  $("#selClear").onclick = ()=>{ pickSel.clear(); updateSelBar(); render(); };
   $("#list").addEventListener("click", e=>{
+    if(e.target.closest("[data-pick]")) return;
     const cb = e.target.closest("[data-course]"); if(cb){ toggleCourse(cb.dataset.course); return; }
     const o = e.target.closest("[data-open]"); if(o) detail(o.dataset.open);
   });
@@ -1734,7 +1797,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.7";
+  const APP_VER = "2026-11-23.8";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

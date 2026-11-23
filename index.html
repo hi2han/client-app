@@ -690,30 +690,50 @@
     if(p==="pm" && String(round)==="2") return "오늘 오후 휴진 (2차 배차)";
     return "";
   }
-  function pubList(c){ return Array.isArray(c.publicParking) ? c.publicParking.filter(p=>p && p.name) : []; }
+  // 공영주차장: 좌표 있으면 주차장 위치로 바로 길안내, 거래처에서 가까운 순
+  function kmDist(a,b){ const R=6371, t=x=>x*Math.PI/180;
+    const dLa=t(b.lat-a.lat), dLo=t(b.lng-a.lng);
+    const h=Math.sin(dLa/2)**2+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.sin(dLo/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h)); }
+  function fmtDist(km){ return km<1 ? "약 "+(Math.round(km*1000/10)*10)+"m" : "약 "+km.toFixed(1)+"km"; }
+  function pubList(c){
+    const l = Array.isArray(c.publicParking) ? c.publicParking.filter(p=>p && p.name) : [];
+    const g = hasXY(c);
+    const out = l.map((p,i)=>{ const pg = parseCoord(p.lat,p.lng);
+      return Object.assign({}, p, {_g:pg, _i:i, _km:(g&&pg)?kmDist(g,pg):null}); });
+    out.sort((x,y)=> (x._km==null)-(y._km==null) || (x._km??0)-(y._km??0) || x._i-y._i);
+    return out;
+  }
+  function pubQuery(p){ return p.address || p.name; }   // 좌표 없을 땐 주소로 정확히 검색
+  function pubApp(p){ return p._g
+    ? "nmap://navigation?dlat="+p._g.lat+"&dlng="+p._g.lng+"&dname="+enc(p.name)+"&appname="+APPN
+    : "nmap://search?query="+enc(pubQuery(p))+"&appname="+APPN; }
+  function pubWebDir(p){ if(!p._g) return N(pubQuery(p)); const m = merc(p._g.lat,p._g.lng);
+    return "https://map.naver.com/p/directions/-/"+m.x.toFixed(6)+","+m.y.toFixed(6)+","+enc(p.name)+",,ADDRESS_POI/-/car"; }
+  function pubWebPin(p){ return p._g ? "https://map.naver.com/?lng="+p._g.lng+"&lat="+p._g.lat+"&title="+enc(p.name) : N(pubQuery(p)); }
+  function pubTag(p){ return p._km!=null ? `<span class="badge" style="margin-left:4px">📏 ${fmtDist(p._km)}</span>` : `<span class="meta" style="margin-left:4px">(주소 기준)</span>`; }
   function pubSummary(c){
     const l = pubList(c);
     if(!l.length && !c.publicParkingNote) return "";
-    return `<div class="note" data-open="${esc(c.id)}" style="background:var(--blue-soft)">🅿️ 공영: ${l.length?esc(l.map(p=>p.name).join(", ")):"근처 공영주차장 없음 (상세 참고)"}</div>`;
+    return `<div class="note" data-open="${esc(c.id)}" style="background:var(--blue-soft)">🅿️ 공영: ${l.length?esc(l.map(p=>p.name+(p._km!=null?" ("+fmtDist(p._km)+")":"")).join(", ")):"근처 공영주차장 없음 (상세 참고)"}</div>`;
   }
   // 코스 카드용: 공영주차장마다 바로 길찾기 버튼
   function pubInline(c){
     const l = pubList(c);
     if(!l.length) return c.publicParkingNote ? `<div class="note" style="background:var(--blue-soft)">🅿️ 공영: 근처 공영주차장 없음 · ${esc(c.publicParkingNote.split(/[.→]/)[0])}</div>` : "";
-    return `<div class="note" style="background:var(--blue-soft)"><b>🅿️ 근처 공영주차장</b>
-      ${l.map(p=>{ const q = (p.address||"")+" "+p.name;
-        const href = IS_PC ? N(q) : "nmap://search?query="+enc(q)+"&appname="+APPN;
-        return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${p.note?`<div class="meta">${esc(p.note)}</div>`:""}</div>
+    return `<div class="note" style="background:var(--blue-soft)"><b>🅿️ 근처 공영주차장 (가까운 순)</b>
+      ${l.map(p=>{ const href = IS_PC ? pubWebDir(p) : pubApp(p);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="flex:1;min-width:0"><b>${esc(p.name)}</b>${pubTag(p)}${p.note?`<div class="meta">${esc(p.note)}</div>`:""}</div>
           <a class="act primary" style="flex:none;padding:7px 10px" href="${esc(href)}"${IS_PC?' target="_blank" rel="noopener"':""}>🧭 가기</a></div>`; }).join("")}</div>`;
   }
   function pubSection(c){
     const l = pubList(c);
     if(!l.length && !c.publicParkingNote) return "";
-    return `<div class="sec"><div class="sec-t">🅿️ 주변 공영주차장</div>
-      ${l.map(p=>{ const q = (p.address||"")+" "+p.name;
-        const app = "nmap://search?query="+enc(q)+"&appname="+APPN;
-        return `<div class="note" style="margin-top:6px"><b>${esc(p.name)}</b><br><span class="meta">${esc(p.address||"")}</span>${p.note?`<br>${esc(p.note)}`:""}
-          <div class="grid2" style="margin-top:8px">${IS_PC?"":`<a class="act primary" href="${esc(app)}">🧭 네이버 앱</a>`}<a class="act ${IS_PC?"primary":""}" href="${esc(N(q))}" target="_blank" rel="noopener">🌐 ${IS_PC?"네이버지도(웹)":"웹 지도"}</a></div></div>`; }).join("")}
+    return `<div class="sec"><div class="sec-t">🅿️ 주변 공영주차장 (가까운 순)</div>
+      ${l.map(p=>`<div class="note" style="margin-top:6px"><b>${esc(p.name)}</b>${pubTag(p)}<br><span class="meta">${esc(p.address||"")}</span>${p.note?`<br>${esc(p.note)}`:""}
+          <div class="grid2" style="margin-top:8px">${IS_PC
+            ? `<a class="act primary" href="${esc(pubWebDir(p))}" target="_blank" rel="noopener">🧭 길찾기(웹)</a><a class="act" href="${esc(pubWebPin(p))}" target="_blank" rel="noopener">📍 지도 보기</a>`
+            : `<a class="act primary" href="${esc(pubApp(p))}">🧭 바로 길안내</a><a class="act" href="${esc(pubWebPin(p))}" target="_blank" rel="noopener">📍 웹 지도</a>`}</div></div>`).join("")}
       ${c.publicParkingNote?`<div class="hint" style="margin-top:6px">${esc(c.publicParkingNote)}</div>`:""}
     </div>`;
   }
@@ -1880,7 +1900,7 @@
   init();
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.11";
+  const APP_VER = "2026-11-23.12";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

@@ -1,227 +1,238 @@
 {
- "updated": "2026-11-23 15:40",
- "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
- "staff": [
-  "이재상 대리",
-  "안종현 주임"
- ],
- "clients": [
-  {
-   "id": "w-asan-jeyak",
-   "name": "(주)아산제약",
-   "category": "wholesale",
-   "dept": "",
-   "address": "서울특별시 동대문구 청계천로 485",
-   "addressDetail": "1층 경비실",
-   "phone": "02-3290-5700",
-   "parking": "hard",
-   "building": "unk",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "",
-   "parkingNote": "주차공간 협소 · 납품은 1층 경비실",
-   "lat": 37.5702227,
-   "lng": 127.0310337,
-   "publicParking": [
+  "updated": "2026-11-23",
+  "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
+  "staff": [
+    "이재상 대리",
+    "안종현 주임"
+  ],
+  "clients": [
     {
-     "name": "신설동 공영주차장",
-     "address": "서울 동대문구 난계로28길 16",
-     "note": "서울시설공단 직영 · 79면 · 높이제한 2.5m · 09~19시 연중무휴 · ☎ 02-2232-6096"
-    }
-   ],
-   "publicParkingNote": ""
-  },
-  {
-   "id": "w-anl-pharm",
-   "name": "에이앤엘팜",
-   "category": "wholesale",
-   "dept": "",
-   "address": "경기도 구리시 산마루로 6",
-   "addressDetail": "갈매중심타워 2층",
-   "phone": "02-2138-1758",
-   "parking": "easy",
-   "building": "yes",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "갈매중심타워 주차장",
-   "parkingNote": "주차장 여유",
-   "lat": 37.6317091,
-   "lng": 127.1151453,
-   "publicParking": [],
-   "publicParkingNote": "지금 운영 중인 공영주차장은 확인 안 됨 → 건물 주차장(여유) 이용. 인근 갈매동 623~625 일원 노상 공영주차장(약 58면) 조성 추진 중, 갈매2저류지 복개 공영주차장(갈매동 506-3, 53면) 12월 준공 목표."
-  },
-  {
-   "id": "h-sangbong-firstbone-os",
-   "name": "상봉퍼스트본정형외과",
-   "category": "hospital",
-   "dept": "정형외과",
-   "address": "서울특별시 중랑구 망우로 322",
-   "addressDetail": "3층",
-   "phone": "02-433-0683",
-   "parking": "easy",
-   "building": "yes",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "건물 주차장",
-   "parkingNote": "주차장 여유",
-   "lat": 37.5966483,
-   "lng": 127.0881738,
-   "publicParking": [
-    {
-     "name": "매화 공영주차장",
-     "address": "서울 중랑구 상봉동 85-41",
-     "note": "1시간 3,000원 · 평일 09~19시, 토 09~15시"
+      "id": "w-asan-jeyak",
+      "name": "(주)아산제약",
+      "category": "wholesale",
+      "dept": "",
+      "address": "서울특별시 동대문구 청계천로 485",
+      "addressDetail": "1층 경비실",
+      "phone": "02-3290-5700",
+      "parking": "hard",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 협소 · 납품은 1층 경비실",
+      "lat": 37.5702227,
+      "lng": 127.0310337,
+      "publicParking": [
+        {
+          "name": "신설동 공영주차장",
+          "address": "서울 동대문구 난계로28길 16",
+          "note": "서울시설공단 직영 · 79면 · 높이제한 2.5m · 09~19시 연중무휴 · ☎ 02-2232-6096"
+        },
+        {
+          "name": "청계8가남3 노상 공영주차장",
+          "address": "서울 동대문구 신설동 109-2",
+          "note": "노상 21면 · 09~19시 · 5분 500원"
+        }
+      ],
+      "publicParkingNote": ""
     },
     {
-     "name": "상봉복개 공영주차장",
-     "address": "서울 중랑구 상봉동 399-4",
-     "note": "1시간 4,800원 · 평일 09~19시, 토 09~15시"
-    }
-   ],
-   "publicParkingNote": ""
-  },
-  {
-   "id": "h-seoulsup-fm",
-   "name": "서울숲가정의학과의원",
-   "category": "hospital",
-   "dept": "가정의학과",
-   "address": "서울특별시 성동구 장터길 34",
-   "addressDetail": "3층 301호 (남지빌딩)",
-   "phone": "02-2295-9915",
-   "parking": "easy",
-   "building": "yes",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "건물 주차장",
-   "parkingNote": "주차공간 여유",
-   "lat": 37.54816,
-   "lng": 127.019618,
-   "publicParking": [
-    {
-     "name": "금호초등학교 공영주차장(건물)",
-     "address": "서울 성동구 무수막길 69",
-     "note": "시간주차 19대 · 높이 2.3m · 5분당 100원"
+      "id": "w-anl-pharm",
+      "name": "에이앤엘팜",
+      "category": "wholesale",
+      "dept": "",
+      "address": "경기도 구리시 산마루로 6",
+      "addressDetail": "갈매중심타워 2층",
+      "phone": "02-2138-1758",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "갈매중심타워 주차장",
+      "parkingNote": "주차장 여유",
+      "lat": 37.6317091,
+      "lng": 127.1151453,
+      "publicParking": [],
+      "publicParkingNote": "지금 운영 중인 공영주차장은 확인 안 됨 → 건물 주차장(여유) 이용. 인근 갈매동 623~625 일원 노상 공영주차장(약 58면) 조성 추진 중, 갈매2저류지 복개 공영주차장(갈매동 506-3, 53면) 12월 준공 목표."
     },
     {
-     "name": "금남시장 공영주차장",
-     "address": "서울 성동구 독서당로 309-11",
-     "note": "상시운영 · 5분당 200원"
-    }
-   ],
-   "publicParkingNote": "",
-   "closed": {
-    "3": "pm"
-   }
-  },
-  {
-   "id": "h-seoul-oncare",
-   "name": "서울온케어의원",
-   "category": "hospital",
-   "dept": "내과",
-   "address": "경기도 남양주시 다산중앙로123번길 21-5",
-   "addressDetail": "8~9층",
-   "phone": "1577-7998",
-   "parking": "easy",
-   "building": "yes",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "건물 주차장",
-   "parkingNote": "주차공간 양호",
-   "lat": 37.6231733,
-   "lng": 127.151564,
-   "publicParking": [
-    {
-     "name": "다산 제6공영주차장",
-     "address": "경기 남양주시 다산동 6097",
-     "note": "94면 · 11/14부터 약 한 달 무료 시범운영 → 이후 기본 30분 600원, 10분당 300원, 1일 7,000원"
+      "id": "h-sangbong-firstbone-os",
+      "name": "상봉퍼스트본정형외과",
+      "category": "hospital",
+      "dept": "정형외과",
+      "address": "서울특별시 중랑구 망우로 322",
+      "addressDetail": "3층",
+      "phone": "02-433-0683",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "건물 주차장",
+      "parkingNote": "주차장 여유",
+      "lat": 37.5966483,
+      "lng": 127.0881738,
+      "publicParking": [
+        {
+          "name": "매화 공영주차장",
+          "address": "서울 중랑구 상봉동 85-41",
+          "note": "1시간 3,000원 · 평일 09~19시, 토 09~15시"
+        },
+        {
+          "name": "상봉복개 공영주차장",
+          "address": "서울 중랑구 상봉동 399-4",
+          "note": "1시간 4,800원 · 평일 09~19시, 토 09~15시"
+        }
+      ],
+      "publicParkingNote": ""
     },
     {
-     "name": "다산 제5공영주차장",
-     "address": "경기 남양주시 다산동 6178",
-     "note": "47면 · 월~토 08~20시 유료, 일요일·공휴일 무료"
-    }
-   ],
-   "publicParkingNote": "같은 길(다산중앙로123번길 7-14)에 민영 '투루파킹 다산퍼스트타워점' 191면(자주식, 1시간 2,500원)도 있음"
-  },
-  {
-   "id": "h-seoul-bom",
-   "name": "서울봄의원",
-   "category": "hospital",
-   "dept": "",
-   "address": "경기도 남양주시 다산중앙로123번길 22-80",
-   "addressDetail": "5층 (신해메디컬타워)",
-   "phone": "1899-2286",
-   "parking": "mid",
-   "building": "yes",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "건물 주차장 (승용차)",
-   "parkingNote": "주차공간 양호 · ⚠️ 스타렉스 진입 어려움 → 승합차는 주변 주차장 이용",
-   "lat": 37.6248062,
-   "lng": 127.1507266,
-   "publicParking": [
-    {
-     "name": "다산 제6공영주차장",
-     "address": "경기 남양주시 다산동 6097",
-     "note": "94면 · 11/14부터 약 한 달 무료 시범운영 → 이후 기본 30분 600원, 10분당 300원, 1일 7,000원"
+      "id": "h-seoulsup-fm",
+      "name": "서울숲가정의학과의원",
+      "category": "hospital",
+      "dept": "가정의학과",
+      "address": "서울특별시 성동구 장터길 34",
+      "addressDetail": "3층 301호 (남지빌딩)",
+      "phone": "02-2295-9915",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "건물 주차장",
+      "parkingNote": "주차공간 여유",
+      "lat": 37.54816,
+      "lng": 127.019618,
+      "publicParking": [
+        {
+          "name": "금호초등학교 공영주차장(건물)",
+          "address": "서울 성동구 무수막길 69",
+          "note": "시간주차 19대 · 높이 2.3m · 5분당 100원",
+          "lat": 37.5525373,
+          "lng": 127.0201047
+        },
+        {
+          "name": "금남시장 공영주차장",
+          "address": "서울 성동구 독서당로 309-11",
+          "note": "상시운영 · 5분당 200원"
+        }
+      ],
+      "publicParkingNote": "",
+      "closed": {
+        "3": "pm"
+      }
     },
     {
-     "name": "다산 제5공영주차장",
-     "address": "경기 남양주시 다산동 6178",
-     "note": "47면 · 월~토 08~20시 유료, 일요일·공휴일 무료"
-    }
-   ],
-   "publicParkingNote": "같은 길(다산중앙로123번길 7-14)에 민영 '투루파킹 다산퍼스트타워점' 191면(자주식, 1시간 2,500원)도 있음"
-  },
-  {
-   "id": "w-noksaek-yakpum",
-   "name": "녹색약품",
-   "category": "wholesale",
-   "dept": "",
-   "address": "서울특별시 금천구 두산로3길 12",
-   "addressDetail": "1층",
-   "phone": "02-831-3515",
-   "parking": "easy",
-   "building": "yes",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "건물 주차장",
-   "parkingNote": "건물주차",
-   "lat": 37.4712479,
-   "lng": 126.889346,
-   "publicParking": [
+      "id": "h-seoul-oncare",
+      "name": "서울온케어의원",
+      "category": "hospital",
+      "dept": "내과",
+      "address": "경기도 남양주시 다산중앙로123번길 21-5",
+      "addressDetail": "8~9층",
+      "phone": "1577-7998",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "건물 주차장",
+      "parkingNote": "주차공간 양호",
+      "lat": 37.6231733,
+      "lng": 127.151564,
+      "publicParking": [
+        {
+          "name": "다산 제6공영주차장",
+          "address": "경기 남양주시 다산동 6097",
+          "note": "94면 · 11/14부터 약 한 달 무료 시범운영 → 이후 기본 30분 600원, 10분당 300원, 1일 7,000원"
+        },
+        {
+          "name": "다산 제5공영주차장",
+          "address": "경기 남양주시 다산동 6178",
+          "note": "47면 · 월~토 08~20시 유료, 일요일·공휴일 무료"
+        }
+      ],
+      "publicParkingNote": "같은 길(다산중앙로123번길 7-14)에 민영 '투루파킹 다산퍼스트타워점' 191면(자주식, 1시간 2,500원)도 있음"
+    },
     {
-     "name": "독산동 금천교 노상 공영주차장",
-     "address": "서울 금천구 독산동 1081-4",
-     "note": "약 500m · 21면 · 평일 09~19시, 토 09~15시, 공휴일 무료 · 5분 400원 (1시간 4,800원)"
-    }
-   ],
-   "publicParkingNote": ""
-  },
-  {
-   "id": "w-jungang-bio-ph",
-   "name": "중앙바이오피에이치",
-   "category": "wholesale",
-   "dept": "",
-   "address": "경기도 하남시 신평로168번길 53",
-   "addressDetail": "2층",
-   "phone": "031-795-7004",
-   "parking": "unk",
-   "building": "unk",
-   "freeTime": "",
-   "enforce": [],
-   "parkingSpot": "",
-   "parkingNote": "⚠️ 좌표는 같은 길 78·104번지 기준 추정 (오차 100m 내외) · 주차 정보 확인 필요",
-   "lat": 37.5468,
-   "lng": 127.2138,
-   "publicParking": [
+      "id": "h-seoul-bom",
+      "name": "서울봄의원",
+      "category": "hospital",
+      "dept": "",
+      "address": "경기도 남양주시 다산중앙로123번길 22-80",
+      "addressDetail": "5층 (신해메디컬타워)",
+      "phone": "1899-2286",
+      "parking": "mid",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "건물 주차장 (승용차)",
+      "parkingNote": "주차공간 양호 · ⚠️ 스타렉스 진입 어려움 → 승합차는 주변 주차장 이용",
+      "lat": 37.6248062,
+      "lng": 127.1507266,
+      "publicParking": [
+        {
+          "name": "다산 제6공영주차장",
+          "address": "경기 남양주시 다산동 6097",
+          "note": "94면 · 11/14부터 약 한 달 무료 시범운영 → 이후 기본 30분 600원, 10분당 300원, 1일 7,000원"
+        },
+        {
+          "name": "다산 제5공영주차장",
+          "address": "경기 남양주시 다산동 6178",
+          "note": "47면 · 월~토 08~20시 유료, 일요일·공휴일 무료"
+        }
+      ],
+      "publicParkingNote": "같은 길(다산중앙로123번길 7-14)에 민영 '투루파킹 다산퍼스트타워점' 191면(자주식, 1시간 2,500원)도 있음"
+    },
     {
-     "name": "신장동 공영주차장",
-     "address": "경기 하남시 하남대로776번길 77",
-     "note": "약 600m · 89면 · 24시간 · 30분 800원, 10분당 300원, 1일 7,000원"
+      "id": "w-noksaek-yakpum",
+      "name": "녹색약품",
+      "category": "wholesale",
+      "dept": "",
+      "address": "서울특별시 금천구 두산로3길 12",
+      "addressDetail": "1층",
+      "phone": "02-831-3515",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "건물 주차장",
+      "parkingNote": "건물주차",
+      "lat": 37.4712479,
+      "lng": 126.889346,
+      "publicParking": [
+        {
+          "name": "독산동 금천교 노상 공영주차장",
+          "address": "서울 금천구 독산동 1081-4",
+          "note": "21면 · 평일 09~19시, 토 09~15시, 공휴일 무료 · 5분 400원 (1시간 4,800원)",
+          "lat": 37.4666603435262,
+          "lng": 126.889483675007
+        }
+      ],
+      "publicParkingNote": ""
+    },
+    {
+      "id": "w-jungang-bio-ph",
+      "name": "중앙바이오피에이치",
+      "category": "wholesale",
+      "dept": "",
+      "address": "경기도 하남시 신평로168번길 53",
+      "addressDetail": "2층",
+      "phone": "031-795-7004",
+      "parking": "unk",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "⚠️ 좌표는 같은 길 78·104번지 기준 추정 (오차 100m 내외) · 주차 정보 확인 필요",
+      "lat": 37.5468,
+      "lng": 127.2138,
+      "publicParking": [
+        {
+          "name": "신장동 공영주차장",
+          "address": "경기 하남시 하남대로776번길 77",
+          "note": "89면 · 24시간 · 30분 800원, 10분당 300원, 1일 7,000원",
+          "lat": 37.5413079897938,
+          "lng": 127.214237196605
+        }
+      ],
+      "publicParkingNote": ""
     }
-   ],
-   "publicParkingNote": ""
-  }
- ]
+  ]
 }

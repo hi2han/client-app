@@ -872,12 +872,41 @@
   }
   function personSheet(){
     const cnt = n => { const c = lsGet(LSC+"::"+n, null); return c && Array.isArray(c.stops) && c.date===today() ? c.stops.filter(x=>!x.done).length : 0; };
-    openSheet(`<h2>👤 누구 코스로 볼까요?</h2>
-      <p class="hint">이름을 고르면 그 사람의 오늘 코스로 바뀌어요. 코스는 사람마다 따로 저장돼요 (이 폰 기준).</p>
-      ${staffList.map(n=>`<button class="btn ${settings.me===n?"p":"g"}" data-person="${esc(n)}">${settings.me===n?"✓ ":""}${esc(n)}${cnt(n)?` · 오늘 남은 ${cnt(n)}곳`:""}</button>`).join("") || '<div class="empty" style="padding:16px">등록된 직원이 없어요.</div>'}
+    const local = (settings.localStaff||[]).filter(n=>!staffList.includes(n));
+    const all = staffList.concat(local);
+    const admin = isAdmin();
+    openSheet(`<h2>👤 배송직원 선택</h2>
+      <p class="hint">이름을 고르면 그 사람의 오늘 코스로 바뀌어요. 코스는 사람마다 따로 저장돼요.</p>
+      ${all.map(n=>`<div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button class="btn ${settings.me===n?"p":"g"}" style="margin:0;flex:1" data-person="${esc(n)}">${settings.me===n?"✓ ":""}${esc(n)}${cnt(n)?` · 오늘 남은 ${cnt(n)}곳`:""}${local.includes(n)?' <span style="font-weight:500;font-size:12px;opacity:.7">(이 폰)</span>':""}</button>
+        ${local.includes(n)?`<button class="act" style="flex:none;padding:14px 12px;color:var(--hard)" data-rmlocal="${esc(n)}">삭제</button>`:""}</div>`).join("") || '<div class="empty" style="padding:16px">등록된 직원이 없어요.</div>'}
+      <div class="sec"><div class="sec-t">＋ 새 배송직원 추가</div>
+        <div style="display:flex;gap:8px"><input class="in" id="npName" placeholder="이름 직급 (예: 홍길동 사원)" autocomplete="off">
+          <button class="act primary" style="flex:none;padding:0 18px" id="npAdd">추가</button></div>
+        <p class="hint" style="margin-top:6px">${admin?"관리자 폰이라 추가하면 <b>모든 직원 앱</b>에 반영돼요.":"이 폰에 바로 추가돼요. 모든 직원 앱에 올리려면 관리자에게 알려주세요."}</p>
+      </div>
       ${settings.me?`<button class="btn d" data-person="">이름 선택 해제</button>`:""}`);
     $("#sheetBody").querySelectorAll("[data-person]").forEach(b=>b.onclick=()=>switchPerson(b.dataset.person));
+    $("#sheetBody").querySelectorAll("[data-rmlocal]").forEach(b=>b.onclick=()=>{
+      settings.localStaff = (settings.localStaff||[]).filter(x=>x!==b.dataset.rmlocal); saveSettings(); personSheet(); });
+    const add = async ()=>{
+      const v = $("#npName").value.trim().replace(/\s+/g," ");
+      if(!v){ toast("이름을 입력해 주세요"); return; }
+      if(all.includes(v)){ toast("이미 있는 이름이에요"); return; }
+      if(admin){
+        $("#npAdd").disabled = true; $("#npAdd").textContent = "저장 중…";
+        try{ await publish(d=>{ if(!d.staff.includes(v)) d.staff.push(v); }, "배송직원 추가: "+v); }
+        catch(e){ toast("저장 실패 · 다시 시도해 주세요"); $("#npAdd").disabled=false; $("#npAdd").textContent="추가"; return; }
+      } else {
+        settings.localStaff = (settings.localStaff||[]).concat([v]); saveSettings();
+      }
+      switchPerson(v);
+      toast(`${v} 님을 추가했어요`);
+    };
+    $("#npAdd").onclick = add;
+    $("#npName").onkeydown = e=>{ if(e.key==="Enter") add(); };
   }
+
   const pickSel = new Set();
   function updateSelBar(){
     const n = pickSel.size;
@@ -2144,7 +2173,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-23.18";
+  const APP_VER = "2026-11-23.19";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-23",
+  "updated": "2026-11-24",
   "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
   "staff": [
     "이재상 대리",
@@ -378,6 +378,30 @@
         "lng": 127.057,
         "ref": "답십리 부근"
       }
+    },
+    {
+      "id": "h-365-dongjak-asan-wpdd",
+      "name": "365동작아산위풍당당재활의학과의원",
+      "category": "hospital",
+      "dept": "재활의학과",
+      "address": "서울특별시 동작구 상도로 195",
+      "addressDetail": "힐스에비뉴(장승배기 힐스테이트) 상가동 1층",
+      "phone": "02-824-1119",
+      "parking": "easy",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 여유 · 장승배기역 바로 앞",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.504963,
+        "lng": 126.9392209,
+        "ref": "장승배기역 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
     }
   ],
   "depot": {

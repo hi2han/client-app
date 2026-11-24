@@ -161,7 +161,7 @@
   .selbar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(0,0,0,.12);padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:none}
   .selbar.show{display:block}
   .selbar .in{max-width:640px;margin:0 auto}
-  .selbar .row2{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
+  .selbar .row2{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
   .selbar button{border:0;border-radius:12px;padding:13px 10px;font-weight:700;cursor:pointer}
   @media (prefers-color-scheme: dark){ mark{background:#5a4b00} }
   /* ===== Toss 스타일 ===== */
@@ -334,6 +334,7 @@
     </div>
     <div class="tbar" id="cTools">
       <button id="cRoute">🧭 네이버로 전체 경로</button>
+      <button id="cEdit">☑ 선택해서 빼기</button>
       <button id="cHist">📅 지난 코스</button>
       <button id="cReset">↺ 새 코스</button>
     </div>
@@ -347,6 +348,13 @@
   <button class="up" id="btnUp" style="display:none">엑셀 올리기</button>
 </div>
 
+<div class="selbar" id="cSelBar"><div class="in">
+  <div style="display:flex;justify-content:space-between;align-items:center"><b id="cSelCount">0곳 선택</b><button id="cSelAll" style="background:none;padding:4px 0;color:var(--brand)">전체 선택</button></div>
+  <div class="row2">
+    <button id="cSelDel" style="background:var(--hard);color:#fff">코스에서 빼기</button>
+    <button id="cSelCancel" style="background:var(--unk-soft);color:var(--ink)">취소</button>
+  </div>
+</div></div>
 <div class="selbar" id="selBar"><div class="in">
   <div style="display:flex;justify-content:space-between;align-items:center"><b id="selCount">0곳 선택</b><span class="hint" id="selNames" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%"></span></div>
   <div class="row2">
@@ -1907,7 +1915,15 @@
         </div></div>`;
     }).join("");
   }
-  let courseOpen = false, doneOpen = false;
+  let courseOpen = false, doneOpen = false, cEdit = false; const cSel = new Set();
+  function updateCSelBar(){
+    const bar = $("#cSelBar"); bar.classList.toggle("show", cEdit && view==="course");
+    $("#cSelCount").textContent = `${cSel.size}곳 선택`;
+    $("#cSelDel").textContent = cSel.size ? `${cSel.size}곳 코스에서 빼기` : "코스에서 빼기";
+    $("#cSelDel").style.opacity = cSel.size ? "1" : ".4";
+    const nav = document.querySelector("nav.bottom"); if(nav) nav.style.visibility = (cEdit && view==="course") ? "hidden" : "";
+  }
+  function setCEdit(on){ cEdit = on; cSel.clear(); renderCourse(); updateCSelBar(); window.scrollTo(0,0); }
   function renderCourse(){
     renderOrigin();
     renderCourseWho();
@@ -1929,6 +1945,14 @@
       $("#courseList").innerHTML = `<div class="empty" style="padding:36px 20px">거래처 탭에서 ☑ 체크하고<br><b>＋ 코스에 추가</b>를 누르세요.<br><button class="btn p" id="goClients" style="max-width:260px;margin:16px auto 0">🏢 거래처에서 고르기</button></div>`;
       $("#goClients").onclick = ()=>go("clients");
       renderNextBar(); return;
+    }
+    if(cEdit){
+      $("#courseList").innerHTML = `<div class="sub-t">뺄 곳을 체크하세요 · ${pending.length}곳</div><div class="tl">` + pending.map((st,i)=>{ const c = cById(st.id); if(!c) return "";
+        const on = cSel.has(st.id);
+        return `<label class="tl-row" style="${on?"background:var(--hard-soft)":""}"><input type="checkbox" class="pickbox" data-csel="${esc(st.id)}" ${on?"checked":""}>
+          <div class="tl-num ${st.urgent?"urgent":""}">${st.urgent?"!":i+1}</div>
+          <div class="tl-body"><div class="tl-name">${esc(c.name)}</div><div class="tl-meta">${esc(area(c.address)||"")}</div></div></label>`; }).join("") + `</div>`;
+      updateCSelBar(); renderNextBar(); return;
     }
     const after = pending[1] ? cById(pending[1].id) : null;
     let html = "";
@@ -2177,6 +2201,7 @@
   // ---------- nav & events ----------
   function go(v){
     view = v==="course" ? "course" : "clients";
+    if(cEdit){ cEdit = false; cSel.clear(); updateCSelBar(); }
     $("#viewClients").hidden = view!=="clients";
     $("#viewCourse").hidden = view!=="course";
     $("#navClients").classList.toggle("on", view==="clients");
@@ -2193,6 +2218,13 @@
     cb.closest(".crow").classList.toggle("picked", cb.checked); updateSelBar();
   });
   $("#selR1").onclick = ()=>addPicked("1");
+  $("#cEdit").onclick = ()=>{ if(!course.stops.some(s=>!s.done)){ toast("코스에 거래처가 없어요"); return; } setCEdit(true); };
+  $("#cSelCancel").onclick = ()=>setCEdit(false);
+  $("#cSelAll").onclick = ()=>{ const p = course.stops.filter(s=>!s.done); if(cSel.size===p.length) cSel.clear(); else p.forEach(s=>cSel.add(s.id)); renderCourse(); };
+  $("#cSelDel").onclick = ()=>{ if(!cSel.size) return; const n = cSel.size;
+    course.stops = course.stops.filter(s=>s.done || !cSel.has(s.id)); saveCourse(); setCEdit(false); toast(`${n}곳을 코스에서 뺐어요`); };
+  $("#courseList").addEventListener("change", e=>{ const cb = e.target.closest("[data-csel]"); if(!cb) return;
+    if(cb.checked) cSel.add(cb.dataset.csel); else cSel.delete(cb.dataset.csel); renderCourse(); });
   $("#selR2").onclick = ()=>addPicked("2");
   $("#selClear").onclick = ()=>{ pickSel.clear(); updateSelBar(); render(); };
   $("#list").addEventListener("click", e=>{
@@ -2215,7 +2247,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-24.3";
+  const APP_VER = "2026-11-24.4";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

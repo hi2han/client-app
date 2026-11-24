@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-24",
+  "updated": "2026-11-25",
   "note": "회사 공용 거래처 목록. 담당자 등 민감 정보는 넣지 않음. 저장소가 공개라 누구나 볼 수 있음.",
   "staff": [
     "이재상 대리",
@@ -668,6 +668,54 @@
       },
       "publicParking": [],
       "publicParkingNote": ""
+    },
+    {
+      "category": "hospital",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "lat": "",
+      "lng": "",
+      "publicParking": [],
+      "publicParkingNote": "",
+      "id": "h-velyb-misa",
+      "name": "블리비 하남미사점",
+      "dept": "피부과",
+      "address": "경기도 하남시 미사강변동로 95",
+      "addressDetail": "그랑파사쥬 2층 (망월동)",
+      "phone": "1833-4717",
+      "parking": "easy",
+      "parkingNote": "주차 용이 · 미사역 바로 앞",
+      "approx": {
+        "lat": 37.5631,
+        "lng": 127.1928,
+        "ref": "미사역 부근"
+      }
+    },
+    {
+      "category": "hospital",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "lat": "",
+      "lng": "",
+      "publicParking": [],
+      "publicParkingNote": "",
+      "id": "h-vance-misa",
+      "name": "밴스의원 미사",
+      "dept": "피부과",
+      "address": "경기도 하남시 미사강변동로84번길 40",
+      "addressDetail": "10층",
+      "phone": "0507-1305-0568",
+      "parking": "easy",
+      "parkingNote": "주차 용이 · 미사역 근처",
+      "approx": {
+        "lat": 37.5625,
+        "lng": 127.1935,
+        "ref": "미사역 부근"
+      }
     }
   ],
   "depot": {

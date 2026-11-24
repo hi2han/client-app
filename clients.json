@@ -472,6 +472,78 @@
       },
       "publicParking": [],
       "publicParkingNote": ""
+    },
+    {
+      "id": "w-pacer-supply",
+      "name": "페이서써플라이",
+      "category": "wholesale",
+      "dept": "",
+      "address": "경기도 구리시 산마루로 19",
+      "addressDetail": "A동 4층",
+      "phone": "031-527-2019",
+      "parking": "easy",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 여유 · 에이앤엘팜(산마루로 6) 근처",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.6317091,
+        "lng": 127.1151453,
+        "ref": "에이앤엘팜(산마루로 6) 근처"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
+    },
+    {
+      "id": "w-wonil-yakpum",
+      "name": "원일약품",
+      "category": "wholesale",
+      "dept": "",
+      "address": "서울특별시 동대문구 장한로 47",
+      "addressDetail": "지하1층",
+      "phone": "02-953-0251",
+      "parking": "hard",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 협소 · 전화 02-953-0251~0255",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.5625,
+        "lng": 127.065,
+        "ref": "장한평역 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
+    },
+    {
+      "id": "w-hanshin-yakpum",
+      "name": "한신약품",
+      "category": "wholesale",
+      "dept": "",
+      "address": "서울특별시 동대문구 천호대로17길 65",
+      "addressDetail": "",
+      "phone": "02-924-5000",
+      "parking": "hard",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 협소",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.5725,
+        "lng": 127.043,
+        "ref": "용두동·답십리 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
     }
   ],
   "depot": {

@@ -319,7 +319,7 @@
   <section id="viewCourse" hidden>
     <header>
       <div class="top">
-        <h1><span id="cpWho" hidden></span>오늘 코스 <small id="courseDate" style="font-size:14px;color:var(--sub);font-weight:600"></small></h1>
+        <h1 style="font-size:20px"><span id="cpWho"></span>오늘 코스 <small id="courseDate" style="font-size:14px;color:var(--sub);font-weight:600"></small></h1>
         <button class="sync" id="btnWho2" style="border:0;background:var(--card);border-radius:999px;padding:9px 13px;cursor:pointer;font-size:13px;color:var(--ink);font-weight:700"></button>
       </div>
     </header>
@@ -521,12 +521,7 @@
   // 코스는 사람(내 이름)마다 따로 저장 → 이름을 바꾸면 그 사람 코스로 전환
   const courseKey = () => LSC + (settings && settings.me ? "::"+settings.me : "");
   function loadCourse(){
-    let c = lsGet(courseKey(), null);
-    if(!c && settings.me && !lsGet("clientParkApp.courseMigrated", false)){
-      const old = lsGet(LSC, null);
-      if(old && Array.isArray(old.stops) && old.stops.length){ c = old; }
-      lsSet("clientParkApp.courseMigrated", true);
-    }
+    let c = lsGet(courseKey(), null);   // 사람마다 완전히 따로 (다른 사람 코스를 복사해오지 않음)
     if(!c || !Array.isArray(c.stops)) c = {date:today(), stops:[]};
     return c;
   }
@@ -668,7 +663,7 @@
     const admin = isAdmin();
     const t = $("#syncTxt"), d = $("#syncDot"); if(!t) return;
     t.textContent = (admin ? "🔐 " : "👤 ") + (settings.me || "이름 선택") + " ▾";
-    const ct = $("#cpWho"); if(ct) ct.textContent = settings.me ? settings.me+" " : "내 ";
+    const ct = $("#cpWho"); if(ct) ct.textContent = settings.me ? settings.me+"님 " : "";
     const w2 = $("#btnWho2"); if(w2) w2.textContent = "👤 "+(settings.me || "이름 선택")+" ▾";
     d.className = "dot " + (admin ? "on" : "local");
     $("#btnAdd").style.display = admin ? "" : "none";
@@ -910,7 +905,7 @@
     lsSet(courseKey(), course);              // 지금 사람 코스 저장
     settings.me = name || ""; saveSettings();
     course = loadCourse();                   // 바뀐 사람 코스 불러오기 (없으면 빈 코스)
-    pickSel.clear(); updateSelBar(); courseOpen = false;
+    updateSelBar(); courseOpen = false;   // 체크해둔 거래처는 유지
     fStaff = "all"; applyRole(); render(); renderCourse(); updateBadge();
     closeSheet(); window.scrollTo({top:0});
     toast(settings.me ? `${settings.me} 코스로 바꿨어요` : "이름 선택을 해제했어요");
@@ -964,6 +959,7 @@
   function addPicked(round){
     const ids = [...pickSel].filter(id=>cById(id));
     if(!ids.length) return;
+    if(!settings.me){ toast("누구 코스인지 먼저 이름을 골라주세요"); personSheet(); return; }
     course.stops = course.stops.filter(st=>!(st.done && ids.includes(st.id)));
     const already = ids.filter(id=>course.stops.some(st=>st.id===id && !st.done));
     // 이미 코스에 있는 곳은 차수만 바꿈
@@ -2279,7 +2275,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-24.5";
+  const APP_VER = "2026-11-24.6";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

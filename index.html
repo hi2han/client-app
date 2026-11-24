@@ -694,7 +694,7 @@
 
   // ---------- 회사 공용 거래처 목록 (clients.json, 한 방향: 회사 → 직원 폰) ----------
   const LSS = "clientParkApp.shared.v1";
-  const SHARED_FIELDS = ["adminNote","approx","closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
+  const SHARED_FIELDS = ["adminNote","approx","hours","lunch","hoursSrc","closed","assignees","name","address","addressDetail","publicParking","publicParkingNote","phone","category","dept","parking","building","freeTime","enforce","parkingSpot","parkingNote","lat","lng"];
   let sharedInfo = lsGet(LSS, {updated:"", count:0, checkedAt:""});
   async function syncShared(firstRun){
     let data = null;
@@ -811,13 +811,43 @@
     (Array.isArray(c.enforce)?c.enforce:[]).forEach(e=>t.push(`<span class="tag">${e==="단속카메라"?"📷 ":""}${esc(e)}</span>`));
     return t.length ? `<div class="tags">${t.join("")}</div>` : "";
   }
+  // ---------- 진료시간 · 점심시간 ----------
+  const toMin = s=>{ const [h,m] = String(s).split(":").map(Number); return h*60+(m||0); };
+  const rng = s=>{ const m = String(s||"").match(/(\d{1,2}:\d{2})\s*[-~]\s*(\d{1,2}:\d{2})/); return m ? [toMin(m[1]), toMin(m[2])] : null; };
+  const til = s=>String(s).replace("-","~");
+  function hoursInfo(c){
+    if(!c || !c.hours) return null;
+    const now = new Date(), d = now.getDay(), t = now.getHours()*60+now.getMinutes();
+    const h = rng(c.hours[d]), L = rng(c.lunch);
+    const lunchToday = L && h && L[0] < h[1];              // 토요일처럼 점심 전에 끝나면 점심 없음
+    if(!h) return {text:"오늘 휴진", lvl:"bad", short:"오늘 휴진"};
+    const text = `오늘 ${til(c.hours[d])}${lunchToday?` · 점심 ${til(c.lunch)}`:""}`;
+    if(t < h[0]) return {text, lvl:"info", short:`${c.hours[d].split("-")[0]} 오픈`};
+    if(t >= h[1]) return {text, lvl:"bad", short:"진료 끝"};
+    if(lunchToday && t >= L[0] && t < L[1]) return {text, lvl:"bad", short:`점심시간 · ${c.lunch.split("-")[1]}까지`};
+    if(lunchToday && t < L[0] && L[0]-t <= 30) return {text, lvl:"warn", short:`${L[0]-t}분 뒤 점심`};
+    if(h[1]-t <= 30) return {text, lvl:"warn", short:`${h[1]-t}분 뒤 마감`};
+    return {text, lvl:"ok", short:"진료 중"};
+  }
+  const HCOL = {bad:"var(--hard)", warn:"var(--mid)", ok:"var(--easy)", info:"var(--sub)"};
+  function hoursLine(c){ const i = hoursInfo(c); if(!i) return "";
+    return `<div class="note" style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span>🕘 ${esc(i.text)}</span><b style="color:${HCOL[i.lvl]};white-space:nowrap">${esc(i.short)}</b></div>`; }
+  function hoursBadge(c){ const i = hoursInfo(c); if(!i || i.lvl==="ok" || i.lvl==="info") return "";
+    return ` · <b style="color:${HCOL[i.lvl]}">${esc(i.short)}</b>`; }
+  function hoursSec(c){
+    if(!c.hours) return "";
+    const today = new Date().getDay();
+    return `<div class="sec"><div class="sec-t">🕘 진료시간${c.lunch?` · 점심 ${esc(til(c.lunch))}`:""}</div>
+      ${[1,2,3,4,5,6,0].map(d=>`<div class="row" style="${d===today?"font-weight:800":""}"><span>${DAYS[d]}${d===today?" (오늘)":""}</span><span>${c.hours[d]?esc(til(c.hours[d])):'<span style="color:var(--hard)">휴진</span>'}</span></div>`).join("")}
+      <div class="hint" style="margin-top:6px">공휴일 휴진 · 출처: ${esc(c.hoursSrc||"공개 병원정보")} — 실제와 다를 수 있어요</div></div>`;
+  }
   // ---------- 휴진 ----------
   const DAYS = ["일","월","화","수","목","금","토"];
   const PART = {all:"종일", am:"오전", pm:"오후"};
   function closedMap(c){ return c && c.closed && typeof c.closed==="object" && !Array.isArray(c.closed) ? c.closed : {}; }
   function closedText(c){
     const m = closedMap(c);
-    return [1,2,3,4,5,6,0].filter(d=>m[d]).map(d=>`${DAYS[d]}${m[d]==="all"?"":" "+PART[m[d]]}`).join(", ");
+    return [1,2,3,4,5,6,0].filter(d=>m[d] && !(d===0 && m[d]==="all") && !(d===6 && m[d]==="pm" && c.hours)).map(d=>`${DAYS[d]}${m[d]==="all"?"":" "+PART[m[d]]}`).join(", ");
   }
   // 오늘 + 배차(1차=오전, 2차=오후) 기준 휴진 경고 문구, 없으면 ""
   function closedWarn(c, round){
@@ -1028,6 +1058,7 @@
         <div class="row"><span>연락처</span><span>${c.phone?`<a class="tel" href="${esc(telHref(c.phone))}">${esc(c.phone)}</a>`:"-"}</span></div>
 
       </div>
+      ${hoursSec(c)}
       <button class="btn ${ic?"g":"b"}" id="dCourse">${ic?"✓ 오늘 코스에 있음 (빼기)":"🚚 오늘 코스에 추가"}</button>
       ${pubSection(c)}
       <div class="sec"><div class="sec-t">네이버지도</div>
@@ -1864,6 +1895,7 @@
       <div class="next-label">다음 목적지</div>
       ${head}
       ${tagsHtml(c)}
+      ${hoursLine(c)}
       ${info?`<div class="note">${esc(info)}</div>`:""}
       ${pubInline(c)}
       <div class="bigacts">
@@ -1973,7 +2005,7 @@
         html += `<div class="tl-row" data-menu="${esc(st.id)}">
           <div class="tl-num ${st.urgent?"urgent":""}">${st.urgent?"!":i+1}</div>
           <div class="tl-body"><div class="tl-name">${esc(c.name)}</div>
-            <div class="tl-meta"><span class="pk-dot b-${pk.cls}"></span>${esc(area(c.address)||"")} · 주차 ${pk.short}${w?` · <span style="color:var(--hard)">⛔ ${esc(w)}</span>`:""}${dueBadge(st)?" "+dueBadge(st):""}</div></div>
+            <div class="tl-meta"><span class="pk-dot b-${pk.cls}"></span>${esc(area(c.address)||"")} · 주차 ${pk.short}${w?` · <span style="color:var(--hard)">⛔ ${esc(w)}</span>`:hoursBadge(c)}${dueBadge(st)?" "+dueBadge(st):""}</div></div>
           <span class="tl-more">⋯</span></div>`;
       }
       { const L = sortXY(cById(pending[pending.length-1].id)), O = originXY();
@@ -2247,7 +2279,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-24.4";
+  const APP_VER = "2026-11-24.5";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

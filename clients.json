@@ -644,6 +644,30 @@
         "0": "all",
         "6": "pm"
       }
+    },
+    {
+      "id": "w-samsong-bio",
+      "name": "삼송바이오",
+      "category": "wholesale",
+      "dept": "",
+      "address": "경기도 고양시 일산서구 킨텍스로 217-59",
+      "addressDetail": "제2킨텍스 오피스동 902호",
+      "phone": "010-4278-8556",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차 양호 · 제2킨텍스(제2전시장) 오피스동",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.66889,
+        "lng": 126.74556,
+        "ref": "킨텍스 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
     }
   ],
   "depot": {

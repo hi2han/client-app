@@ -1683,6 +1683,19 @@
         rest.forEach((x,i)=>{ const d=dist(last, pt(x)); if(d<bd){ bd=d; bi=i; } });
         path.push(rest.splice(bi,1)[0]);
       }
+      // 2-opt: 꼬인 구간을 풀어서 총 거리를 줄임 (출발지에서 나가서 다시 출발지로 돌아오는 기준)
+      if(origin && path.length > 2){
+        const len = p=>{ let t = dist(origin, pt(p[0])); for(let i=1;i<p.length;i++) t += dist(pt(p[i-1]), pt(p[i])); return t + dist(pt(p[p.length-1]), origin); };
+        let best = path.slice(), bestL = len(best), improved = true, guard = 0;
+        while(improved && guard++ < 200){
+          improved = false;
+          for(let i=0;i<best.length-1;i++) for(let j=i+1;j<best.length;j++){
+            const cand = best.slice(0,i).concat(best.slice(i,j+1).reverse(), best.slice(j+1));
+            const l = len(cand); if(l < bestL - 1e-9){ best = cand; bestL = l; improved = true; }
+          }
+        }
+        path.splice(0, path.length, ...best);
+      }
       noXY.sort((a,b)=>{ const A=cById(a.cid)||{}, B=cById(b.cid)||{}; return area(A.address).localeCompare(area(B.address),"ko") || String(A.address).localeCompare(String(B.address),"ko"); });
       out.push(...path, ...noXY);
     });
@@ -1939,6 +1952,9 @@
             <div class="tl-meta"><span class="pk-dot b-${pk.cls}"></span>${esc(area(c.address)||"")} · 주차 ${pk.short}${w?` · <span style="color:var(--hard)">⛔ ${esc(w)}</span>`:""}${dueBadge(st)?" "+dueBadge(st):""}</div></div>
           <span class="tl-more">⋯</span></div>`;
       }
+      { const L = sortXY(cById(pending[pending.length-1].id)), O = originXY();
+        if(L && O) html += `<div class="tl-gap">↓ ${fmtDist(kmDist(L,O))}</div>`;
+        html += `<div class="tl-row" style="cursor:default"><div class="tl-num" style="background:var(--brand-soft)">🏁</div><div class="tl-body"><div class="tl-name" style="color:var(--sub)">${esc(curOrigin().name||"출발지")} 복귀</div></div></div>`; }
       html += `</div>`;
     }
     if(done.length){
@@ -2036,12 +2052,15 @@
   }
   // ── 출발지: 기본은 회사(관리자가 정함), 내 폰에서만 바꿀 수도 있음 ──
   function curOrigin(){ const o = settings.origin; return (o && o.address!==undefined) ? o : depot; }
-  function originXY(){ const o = curOrigin(); return parseCoord(o.lat, o.lng) || (o.approx ? parseCoord(o.approx.lat, o.approx.lng) : null); }
+  function originXY(){
+    const pick = o => o ? (parseCoord(o.lat, o.lng) || (o.approx ? parseCoord(o.approx.lat, o.approx.lng) : null)) : null;
+    return pick(curOrigin()) || pick(depot) || pick(DEFAULT_DEPOT);
+  }
   function originExact(){ const o = curOrigin(); return !!parseCoord(o.lat, o.lng); }
   function renderOrigin(){
     const el = $("#cOrigin"); if(!el) return;
     const o = curOrigin();
-    el.textContent = `🏁 ${o.name||"출발지"} 출발${settings.origin?" (내 폰 설정)":""} · 변경 ›`;
+    el.textContent = `🏁 ${o.name||"출발지"} 출발 → 복귀 기준${settings.origin?" (내 폰 설정)":""} · 변경 ›`;
   }
   function doSort(origin, label, silent){
     reorderPending(p=>{
@@ -2049,7 +2068,10 @@
       const sorted = sortByRoute(rest.map(st=>({cid:st.id, round:sRound(st), staff:"", st})), origin).map(x=>x.st);
       p.splice(0, p.length, ...urg, ...sorted);
     });
-    if(!silent) toast(`🚚 ${label} 출발 기준으로 배송루트를 정리했어요`);
+    if(!silent){
+      const p = course.stops.filter(s=>!s.done).map(s=>cById(s.id)).filter(Boolean);
+      toast(`🚚 배송루트 정리 완료 · ${label} → ${p.slice(0,3).map(c=>shortName(c)).join(" → ")}${p.length>3?" …":""}`);
+    }
   }
   function getGPS(){ return new Promise((res,rej)=>{
     if(!navigator.geolocation){ rej(new Error("이 기기는 위치를 지원하지 않아요")); return; }
@@ -2193,7 +2215,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-24.2";
+  const APP_VER = "2026-11-24.3";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

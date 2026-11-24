@@ -486,13 +486,13 @@
       "freeTime": "",
       "enforce": [],
       "parkingSpot": "",
-      "parkingNote": "주차공간 여유 · 에이앤엘팜(산마루로 6) 근처",
+      "parkingNote": "주차공간 여유",
       "lat": "",
       "lng": "",
       "approx": {
-        "lat": 37.6317091,
-        "lng": 127.1151453,
-        "ref": "에이앤엘팜(산마루로 6) 근처"
+        "lat": 37.6317,
+        "lng": 127.1151,
+        "ref": "구리 갈매동 산마루로 부근"
       },
       "publicParking": [],
       "publicParkingNote": ""
@@ -541,6 +541,30 @@
         "lat": 37.5725,
         "lng": 127.043,
         "ref": "용두동·답십리 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
+    },
+    {
+      "id": "h-yonsei-dowoori-gangdong",
+      "name": "연세도우리소아청소년과의원(강동)",
+      "category": "hospital",
+      "dept": "소아청소년과",
+      "address": "서울특별시 강동구 양재대로 1300",
+      "addressDetail": "2층 211호",
+      "phone": "02-477-9119",
+      "parking": "easy",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차공간 여유",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.5277,
+        "lng": 127.1362,
+        "ref": "둔촌동역 부근"
       },
       "publicParking": [],
       "publicParkingNote": ""

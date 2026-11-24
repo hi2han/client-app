@@ -568,6 +568,82 @@
       },
       "publicParking": [],
       "publicParkingNote": ""
+    },
+    {
+      "id": "h-heung-k",
+      "name": "흥케이병원",
+      "category": "hospital",
+      "dept": "정형외과·내과 등",
+      "address": "경기도 시흥시 능곡번영길 22",
+      "addressDetail": "더나은프라자 5~8층",
+      "phone": "031-314-7575",
+      "parking": "mid",
+      "building": "unk",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "주차 보통 · 시흥능곡역 바로 앞",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.3702,
+        "lng": 126.8085,
+        "ref": "시흥능곡역 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": "",
+      "hours": {
+        "1": "09:00-18:00",
+        "2": "09:00-18:00",
+        "3": "09:00-18:00",
+        "4": "09:00-18:00",
+        "5": "09:00-18:00",
+        "6": "09:00-13:00"
+      },
+      "lunch": "",
+      "hoursSrc": "의약일보 (국립중앙의료원 공공데이터)",
+      "closed": {
+        "0": "all",
+        "6": "pm"
+      }
+    },
+    {
+      "id": "h-the-hill",
+      "name": "더힐병원",
+      "category": "hospital",
+      "dept": "내과 등",
+      "address": "서울특별시 송파구 송이로 81",
+      "addressDetail": "지하2층~지상7층",
+      "phone": "1555-1627",
+      "parking": "hard",
+      "building": "none",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "",
+      "parkingNote": "기계식 주차라 배송차 주차 불가 → 주변 주차장 이용 · 경찰병원역 근처",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.4958,
+        "lng": 127.1236,
+        "ref": "경찰병원역 부근"
+      },
+      "publicParking": [],
+      "publicParkingNote": "",
+      "hours": {
+        "1": "09:00-18:00",
+        "2": "09:00-18:00",
+        "3": "09:00-18:00",
+        "4": "09:00-18:00",
+        "5": "09:00-18:00",
+        "6": "10:30-14:00"
+      },
+      "lunch": "12:30-13:30",
+      "hoursSrc": "모두닥 (공공데이터 기반)",
+      "closed": {
+        "0": "all",
+        "6": "pm"
+      }
     }
   ],
   "depot": {

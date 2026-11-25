@@ -716,6 +716,30 @@
         "lng": 127.1935,
         "ref": "미사역 부근"
       }
+    },
+    {
+      "id": "w-sd-pharma",
+      "name": "에스디파마",
+      "category": "wholesale",
+      "dept": "",
+      "address": "경기도 남양주시 홍유릉로 275-25",
+      "addressDetail": "",
+      "phone": "031-555-3999",
+      "parking": "easy",
+      "building": "yes",
+      "freeTime": "",
+      "enforce": [],
+      "parkingSpot": "자체 주차장",
+      "parkingNote": "자체 주차장 보유",
+      "lat": "",
+      "lng": "",
+      "approx": {
+        "lat": 37.628,
+        "lng": 127.2,
+        "ref": "남양주 일패동·금곡동 부근 (대략)"
+      },
+      "publicParking": [],
+      "publicParkingNote": ""
     }
   ],
   "depot": {

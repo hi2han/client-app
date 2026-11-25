@@ -1083,7 +1083,7 @@
       <div class="sec"><div class="sec-t">좌표 (네이버 경로 자동 입력에 필요)</div>
         <input class="in" id="dXY" inputmode="decimal" placeholder="위도, 경도  예) 37.5000, 127.0364" value="${hasXY(c)?esc(c.lat+", "+c.lng):""}">
         <button class="act" id="dGps" style="width:100%;margin-top:8px">📍 지금 있는 위치로 채우기 (거래처 앞에서 누르세요)</button>
-        <div class="hint" id="dXYmsg" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"⚠️ 좌표 없음 — 전체 경로·동선 정렬에서 빠져요"}</div>
+        <div class="hint" id="dXYmsg" style="margin-top:6px">${hasXY(c)?"✅ 좌표 있음":"좌표 없음 — 길안내는 주소로 검색돼요"}</div>
       </div>
       <div class="sec"><div class="sec-t">⛔ 휴진 (누를 때마다: 없음 → 오후 → 오전 → 종일)</div>
         <div class="tgl" id="tClosed">${[1,2,3,4,5,6,0].map(d=>{ const v=closedMap(editing)[d]; return `<button data-d="${d}" class="${v?"on":""}">${DAYS[d]}${v?" "+PART[v]:""}</button>`; }).join("")}</div>
@@ -1933,7 +1933,7 @@
       const head = round!==lastR ? `<div class="sub-t"><span class="tag cat">${round}차</span></div>` : ""; lastR = round;
       return head+`<div class="card"><div class="stop"><div class="num">${i+1}</div>
         <div class="stop-body" data-open="${esc(c.id)}" style="cursor:pointer"><div class="name">${esc(c.name)}</div>
-          <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}${hasXY(c)?"":' · <span style="color:var(--mid)">좌표 없음</span>'}</div></div>
+          <div class="meta">${esc(CATS[catOf(c)])} · ${esc(c.address)}</div></div>
         <span class="badge b-${pk.cls}">주차 ${pk.short}</span></div>
         ${tagsHtml(c, round)}
         <div class="acts" style="grid-template-columns:1fr 1fr 1fr">
@@ -2182,7 +2182,6 @@
   function routeSheet(){
     const pend = courseWho!=="me" ? staffCourse(courseWho).map(x=>x.c) : course.stops.filter(s=>!s.done).map(s=>cById(s.id)).filter(Boolean);
     if(!pend.length){ toast("코스에 남은 거래처가 없어요"); return; }
-    const ok = pend.filter(hasXY), miss = pend.filter(c=>!hasXY(c));
     if(IS_PC){
       openSheet(`<h2>네이버지도(웹)로 코스 보기</h2>
         <p class="hint">PC 웹 지도는 여러 경유지를 한 번에 넣는 링크를 지원하지 않아서, 순서대로 한 곳씩 열어요. 휴대폰에서는 6곳씩 한 번에 보내져요.</p>
@@ -2194,22 +2193,31 @@
       $("#rClose").onclick = closeSheet;
       return;
     }
-    const chunks = []; for(let i=0;i<ok.length;i+=6) chunks.push(ok.slice(i,i+6));
-    const btns = chunks.map((ch,i)=>{
-      const from = i>0 ? chunks[i-1][chunks[i-1].length-1] : null;
-      const a = i*6+1, b = i*6+ch.length;
-      return `<a class="btn ${i===0?"p":"g"}" href="${esc(L.route(ch, from))}">${i===0?"🧭 ":""}${a}~${b}번 경로 열기 <span style="font-weight:400;font-size:12.5px">(${i===0?"현재 위치 출발":esc(shortName(from))+" 출발"})</span></a>
-        <div class="hint" style="margin:6px 4px 0">${ch.map((c,j)=>(a+j)+". "+esc(shortName(c))).join(" → ")}</div>`;
+    // 코스 순서 그대로: 좌표 있는 곳은 6곳씩 묶어 경로로, 좌표 없는 곳은 그 자리에서 주소로 길안내
+    const segs = []; let cur = null;
+    pend.forEach((c,i)=>{
+      if(hasXY(c)){
+        if(!cur || cur.list.length>=6){ const prev = i>0 ? pend[i-1] : null; cur = {type:"route", list:[], start:i+1, from: prev && hasXY(prev) ? prev : null}; segs.push(cur); }
+        cur.list.push(c);
+      } else { cur = null; segs.push({type:"addr", c, start:i+1}); }
+    });
+    let first = true;
+    const btns = segs.map(sg=>{
+      const cls = first ? "p" : "g"; first = false;
+      if(sg.type==="addr"){
+        return `<a class="btn ${cls}" href="${esc(L.app(sg.c))}">📍 ${sg.start}. ${esc(shortName(sg.c))} 주소로 길안내</a>
+          <div class="hint" style="margin:6px 4px 0">${esc(sg.c.address)}</div>`;
+      }
+      const a = sg.start, b = sg.start+sg.list.length-1;
+      const label = sg.list.length===1 ? `${a}. ${esc(shortName(sg.list[0]))} 길안내` : `${a}~${b}번 경로 열기`;
+      return `<a class="btn ${cls}" href="${esc(L.route(sg.list, sg.from))}">🧭 ${label} <span style="font-weight:400;font-size:12.5px">(${sg.from?esc(shortName(sg.from))+" 출발":"현재 위치 출발"})</span></a>
+        ${sg.list.length>1?`<div class="hint" style="margin:6px 4px 0">${sg.list.map((c,j)=>(a+j)+". "+esc(shortName(c))).join(" → ")}</div>`:""}`;
     }).join("");
     openSheet(`<h2>네이버지도로 경로 보내기</h2>
-      <p class="hint">코스 화면 순서 그대로 네이버지도 앱에 자동 입력돼요 (한 번에 최대 6곳: 경유지 5 + 도착지 1). 앱에서 '안내 시작'만 누르면 돼요.</p>
-      ${ok.length ? btns : `<div class="empty" style="padding:20px">좌표가 있는 거래처가 없어요.<br>거래처 상세에서 좌표를 넣어주세요.</div>`}
-      ${miss.length ? `<div class="sec"><div class="sec-t" style="color:var(--mid)">⚠️ 좌표가 없어 빠진 곳 ${miss.length}곳</div>
-        ${miss.map(c=>`<div class="pick" data-fix="${esc(c.id)}"><div style="flex:1"><b>${esc(shortName(c))}</b><div class="meta">${esc(c.address)}</div></div><span class="act" style="padding:6px 10px">좌표 넣기</span></div>`).join("")}
-        <p class="hint">이 곳들은 완료 버튼으로 하나씩 길찾기 하거나, 좌표를 넣으면 경로에 포함돼요.</p></div>` : ""}
+      <p class="hint">코스 순서대로 위에서부터 차례로 누르세요. 좌표가 있는 곳은 최대 6곳씩 한 번에 경로로, 좌표가 없는 곳은 주소로 바로 길안내돼요.</p>
+      ${btns}
       <button class="btn g" id="rClose">닫기</button>`);
     $("#rClose").onclick = closeSheet;
-    $("#sheetBody").querySelectorAll("[data-fix]").forEach(el=>el.onclick=()=>detail(el.dataset.fix));
   }
   function pickSheet(){
     let round = "1";
@@ -2275,7 +2283,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-25.1";
+  const APP_VER = "2026-11-25.2";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});

@@ -1718,9 +1718,9 @@
         rest.forEach((x,i)=>{ const d=dist(last, pt(x)); if(d<bd){ bd=d; bi=i; } });
         path.push(rest.splice(bi,1)[0]);
       }
-      // 2-opt: 꼬인 구간을 풀어서 총 거리를 줄임 (출발지에서 나가서 다시 출발지로 돌아오는 기준)
+      // 2-opt: 꼬인 구간을 풀어서 총 거리를 줄임 (출발지에서 시작해 가까운 곳 → 먼 곳으로 나아가는 편도 기준)
       if(origin && path.length > 2){
-        const len = p=>{ let t = dist(origin, pt(p[0])); for(let i=1;i<p.length;i++) t += dist(pt(p[i-1]), pt(p[i])); return t + dist(pt(p[p.length-1]), origin); };
+        const len = p=>{ let t = dist(origin, pt(p[0])); for(let i=1;i<p.length;i++) t += dist(pt(p[i-1]), pt(p[i])); return t; };
         let best = path.slice(), bestL = len(best), improved = true, guard = 0;
         while(improved && guard++ < 200){
           improved = false;
@@ -2112,7 +2112,7 @@
   function renderOrigin(){
     const el = $("#cOrigin"); if(!el) return;
     const o = curOrigin();
-    el.textContent = `🏁 ${o.name||"출발지"} 출발 → 복귀 기준${settings.origin?" (내 폰 설정)":""} · 변경 ›`;
+    el.textContent = `🏁 ${o.name||"출발지"} 출발 · 가까운 곳부터${settings.origin?" (내 폰 설정)":""} · 변경 ›`;
   }
   function doSort(origin, label, silent){
     reorderPending(p=>{
@@ -2275,7 +2275,7 @@
   go(course.stops.some(s=>!s.done) ? "course" : "clients");
 
   // ---------- 새 버전 자동 반영 (폰에 예전 화면이 남아 있으면 최신으로 새로고침) ----------
-  const APP_VER = "2026-11-24.6";
+  const APP_VER = "2026-11-25.1";
   async function checkVersion(){
     try{
       const r = await fetch("version.txt?t="+Date.now(), {cache:"no-store"});
